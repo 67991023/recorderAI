@@ -10,8 +10,6 @@ from typing import Dict, List
 
 # Application Configuration (UPDATED)
 APP_CONFIG = {
-    'user_login': '67991023',
-    'current_datetime': '2025-08-28 07:45:12',
     'version': 'ml-focused-1.1',
     'app_name': 'Thai Voice Recorder with ML Analytics'
 }
