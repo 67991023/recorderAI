@@ -11,7 +11,7 @@ class ThaiVoiceRecorderML:
     def __init__(self):
         # Application info (UPDATED TIMESTAMP)
         self.user_login = "67991023"
-        self.current_datetime = "2025-08-28 07:06:16"
+        self.current_datetime = "2025-09-02 06:47:37"
         self.version = "ml-focused-1.0"
         
         # Initialize components
@@ -355,7 +355,7 @@ def main():
     try:
         print("🚀 Starting Thai Voice Recorder with ML Analytics...")
         print(f"👤 Current User Login: 67991023")
-        print(f"📅 Current Date and Time (UTC): 2025-08-28 07:06:16")
+        print(f"📅 Current Date and Time (UTC): 2025-09-02 06:47:37")
         print(f"🔬 Features: Voice Recording + ML Classification + Word Distribution + Visualization")
         print("=" * 80)
         

@@ -2,7 +2,7 @@
 Data Visualization Functions (No Time Analysis)
 ==============================================
 Author: User 67991023
-Current Date and Time (UTC): 2025-08-28 06:51:14
+Current Date and Time (UTC): 2025-09-02 06:47:37
 """
 
 import matplotlib.pyplot as plt
@@ -63,7 +63,7 @@ def create_word_count_distribution_chart(voice_records: List[Dict], output_dir: 
     Returns:
         str: Path to saved chart
     """
-    from text_processing import fix_thai_word_count
+    from Thai_textProcessing import fix_thai_word_count
     
     if not voice_records:
         print("❌ No data for word count distribution")
