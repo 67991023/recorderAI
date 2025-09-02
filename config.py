@@ -1,17 +1,16 @@
 """
 Configuration file for Thai Voice Recorder with ML Analytics
-===========================================================
 Author: User 67991023
-Current Date and Time (UTC): 2025-08-28 07:45:12
+Current Date and Time (UTC): 2025-09-02 06:47:37
 """
 
 import os
 from typing import Dict, List
 
-# Application Configuration (UPDATED)
+# Application Configuration
 APP_CONFIG = {
     'user_login': '67991023',
-    'current_datetime': '2025-08-28 07:45:12',
+    'current_datetime': '2025-09-02 06:47:37',
     'version': 'ml-focused-1.1',
     'app_name': 'Thai Voice Recorder with ML Analytics'
 }
@@ -24,14 +23,14 @@ FILE_CONFIG = {
     'log_file': 'voice_recorder.log'
 }
 
-# Audio Configuration (IMPROVED FOR LONG SENTENCES)
+# Audio Configuration
 AUDIO_CONFIG = {
     'language': 'th-TH',
     'energy_threshold': 300,
-    'pause_threshold': 1.2,  # Increased for longer pauses
+    'pause_threshold': 1.2,
     'phrase_threshold': 0.3,
-    'timeout': 20,  # Increased timeout
-    'phrase_time_limit': 120  # Increased for long sentences
+    'timeout': 20,
+    'phrase_time_limit': 120
 }
 
 # ML Configuration
@@ -81,11 +80,6 @@ VIS_CONFIG = {
     'figure_size': (12, 8),
     'font_size': 10,
     'dpi': 300,
-    'colors': {
-        'primary': 'skyblue',
-        'secondary': 'lightgreen', 
-        'accent': 'coral',
-        'highlight': 'red'
-    },
+    'colors': {'primary': 'skyblue', 'secondary': 'lightgreen', 'accent': 'coral', 'highlight': 'red'},
     'thai_fonts': ['Tahoma', 'Arial Unicode MS', 'DejaVu Sans']
 }

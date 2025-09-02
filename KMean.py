@@ -179,7 +179,7 @@ def ml_text_classification(voice_records: List[Dict]) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Results with ML classification
     """
-    from text_processing import preprocess_text_for_ml, fix_thai_word_count, classify_text_by_rules
+    from Thai_textProcessing import preprocess_text_for_ml, fix_thai_word_count, classify_text_by_rules
     
     if not voice_records or len(voice_records) < 2:
         print("❌ Need at least 2 records for ML classification")

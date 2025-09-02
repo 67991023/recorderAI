@@ -160,7 +160,7 @@ def fix_voice_record(record: Dict, record_index: int) -> Dict:
     Returns:
         Dict: Fixed voice record
     """
-    from text_processing import fix_thai_word_count, classify_text_by_rules
+    from Thai_textProcessing import fix_thai_word_count, classify_text_by_rules
     
     # Ensure required fields
     if 'id' not in record:
@@ -361,7 +361,7 @@ def get_data_statistics(voice_records: List[Dict]) -> Dict:
     if not voice_records:
         return {}
     
-    from text_processing import fix_thai_word_count
+    from Thai_textProcessing import fix_thai_word_count
     
     # Fix word counts if needed
     for record in voice_records:
