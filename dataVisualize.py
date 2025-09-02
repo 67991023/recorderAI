@@ -1,8 +1,6 @@
 """
-Data Visualization Functions (No Time Analysis)
-==============================================
-Author: User 67991023
-Current Date and Time (UTC): 2025-08-28 06:51:14
+Data Visualization Functions
+Author: User 67991023, Current Date: 2025-09-02 06:47:37
 """
 
 import matplotlib.pyplot as plt
@@ -12,7 +10,6 @@ from typing import Dict, List, Optional
 import os
 from config import VIS_CONFIG, APP_CONFIG
 
-# Check for seaborn availability
 try:
     import seaborn as sns
     SEABORN_AVAILABLE = True
@@ -43,33 +40,18 @@ def configure_matplotlib():
         
         if selected_font:
             plt.rcParams['font.family'] = [selected_font]
-            print(f"✅ Using font: {selected_font}")
         else:
             plt.rcParams['font.family'] = ['sans-serif']
-            print("⚠️ Using default font")
             
-    except Exception as e:
-        print(f"⚠️ Font configuration error: {e}")
+    except Exception:
         plt.rcParams['font.family'] = ['sans-serif']
 
 def create_word_count_distribution_chart(voice_records: List[Dict], output_dir: str = "analysis_outputs") -> str:
-    """
-    Create word count distribution visualization
-    
-    Args:
-        voice_records: List of voice records
-        output_dir: Output directory
-        
-    Returns:
-        str: Path to saved chart
-    """
-    from text_processing import fix_thai_word_count
+    """Create word count distribution visualization"""
+    from Thai_textProcessing import fix_thai_word_count
     
     if not voice_records:
-        print("❌ No data for word count distribution")
         return ""
-    
-    print(f"📊 Creating word count distribution chart for {len(voice_records)} records...")
     
     os.makedirs(output_dir, exist_ok=True)
     
@@ -101,10 +83,8 @@ def create_word_count_distribution_chart(voice_records: List[Dict], output_dir: 
         std_words = np.std(word_counts)
         
         # Add statistical lines
-        ax.axvline(mean_words, color='red', linestyle='--', linewidth=2,
-                  label=f'Mean: {mean_words:.1f}')
-        ax.axvline(median_words, color='green', linestyle='--', linewidth=2,
-                  label=f'Median: {median_words:.1f}')
+        ax.axvline(mean_words, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_words:.1f}')
+        ax.axvline(median_words, color='green', linestyle='--', linewidth=2, label=f'Median: {median_words:.1f}')
         
         # Formatting
         ax.set_title(f'Word Count Distribution\nUser: {APP_CONFIG["user_login"]} | {APP_CONFIG["current_datetime"]}', 
@@ -143,130 +123,54 @@ Range: {max(word_counts) - min(word_counts)}"""
         return ""
 
 def create_ml_classification_charts(results_df: pd.DataFrame, output_dir: str = "analysis_outputs") -> str:
-    """
-    Create ML classification visualization charts
-    
-    Args:
-        results_df: DataFrame with ML results
-        output_dir: Output directory
-        
-    Returns:
-        str: Path to saved chart
-    """
+    """Create ML classification visualization charts"""
     if results_df.empty:
-        print("❌ No data for ML classification charts")
         return ""
-    
-    print("🤖 Creating ML classification charts...")
     
     os.makedirs(output_dir, exist_ok=True)
     
     try:
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
-        fig.suptitle('Machine Learning Classification Analysis', fontsize=16, y=0.98)
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
         
-        # 1. ML Clusters
-        if 'ml_cluster' in results_df.columns and len(results_df['ml_cluster'].unique()) > 1:
+        # 1. Cluster Distribution
+        if 'ml_cluster' in results_df.columns:
             cluster_counts = results_df['ml_cluster'].value_counts().sort_index()
             colors = plt.cm.Set3(np.linspace(0, 1, len(cluster_counts)))
-            bars = ax1.bar(range(len(cluster_counts)), cluster_counts.values, 
-                          color=colors, alpha=0.8, edgecolor='black')
-            ax1.set_title('ML Clusters (K-Means)', fontsize=12)
-            ax1.set_xlabel('Cluster ID')
-            ax1.set_ylabel('Records Count')
-            ax1.set_xticks(range(len(cluster_counts)))
-            ax1.set_xticklabels([f'C{i}' for i in cluster_counts.index])
-            
-            # Add silhouette score if available
-            if hasattr(results_df, 'attrs') and 'silhouette_score' in results_df.attrs:
-                silhouette = results_df.attrs['silhouette_score']
-                ax1.text(0.02, 0.98, f'Silhouette Score: {silhouette:.3f}', 
-                        transform=ax1.transAxes, verticalalignment='top',
-                        bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.7))
-            
-            # Add value labels
-            for bar in bars:
-                height = bar.get_height()
-                ax1.text(bar.get_x() + bar.get_width()/2., height,
-                        f'{int(height)}', ha='center', va='bottom')
-        else:
-            ax1.text(0.5, 0.5, 'Single Cluster\n(Insufficient data)', 
-                    ha='center', va='center', transform=ax1.transAxes,
-                    bbox=dict(boxstyle='round', facecolor='lightgray'))
-            ax1.set_title('ML Clusters', fontsize=12)
+            ax1.pie(cluster_counts.values, labels=[f'Cluster {i}' for i in cluster_counts.index],
+                   autopct='%1.1f%%', colors=colors, startangle=90)
+            ax1.set_title('ML Cluster Distribution', fontsize=14)
         
-        # 2. Rule-based Categories
+        # 2. Word Count by Cluster
+        if 'ml_cluster' in results_df.columns and 'word_count' in results_df.columns:
+            cluster_word_counts = [results_df[results_df['ml_cluster'] == cluster]['word_count'].values 
+                                 for cluster in sorted(results_df['ml_cluster'].unique())]
+            ax2.boxplot(cluster_word_counts, labels=[f'C{i}' for i in range(len(cluster_word_counts))])
+            ax2.set_title('Word Count by Cluster', fontsize=14)
+            ax2.set_xlabel('Cluster')
+            ax2.set_ylabel('Word Count')
+        
+        # 3. Rule Categories
         if 'rule_category' in results_df.columns:
             category_counts = results_df['rule_category'].value_counts()
             colors = plt.cm.Pastel1(np.linspace(0, 1, len(category_counts)))
-            wedges, texts, autotexts = ax2.pie(
-                category_counts.values, 
-                labels=[cat[:15] + '...' if len(cat) > 15 else cat for cat in category_counts.index],
-                autopct='%1.1f%%',
-                colors=colors,
-                startangle=90
-            )
-            ax2.set_title('Rule-based Categories', fontsize=12)
+            ax3.pie(category_counts.values, 
+                   labels=[cat[:10] + '...' if len(cat) > 10 else cat for cat in category_counts.index],
+                   autopct='%1.1f%%', colors=colors, startangle=90)
+            ax3.set_title('Text Categories', fontsize=12)
         
-        # 3. Word Count by Cluster
-        if 'ml_cluster' in results_df.columns and len(results_df['ml_cluster'].unique()) > 1:
-            clusters = results_df['ml_cluster'].unique()
-            cluster_word_data = [results_df[results_df['ml_cluster'] == c]['word_count'].values for c in clusters]
-            
-            box_plot = ax3.boxplot(cluster_word_data, labels=[f'C{c}' for c in clusters], patch_artist=True)
-            ax3.set_title('Word Count by Cluster', fontsize=12)
-            ax3.set_ylabel('Word Count')
-            ax3.grid(True, alpha=0.3)
-            
-            # Color the boxes
-            colors = plt.cm.Set2(np.linspace(0, 1, len(clusters)))
-            for patch, color in zip(box_plot['boxes'], colors):
-                patch.set_facecolor(color)
-                patch.set_alpha(0.7)
-        else:
-            word_counts = results_df['word_count']
-            ax3.hist(word_counts, bins=min(10, len(word_counts)), alpha=0.7, 
-                    color=VIS_CONFIG['colors']['secondary'], edgecolor='black')
-            ax3.set_title('Word Count Distribution', fontsize=12)
-            ax3.set_xlabel('Word Count')
-            ax3.set_ylabel('Frequency')
-            ax3.grid(True, alpha=0.3)
-        
-        # 4. Cluster vs Category Heatmap
-        if ('ml_cluster' in results_df.columns and 'rule_category' in results_df.columns 
-            and len(results_df['ml_cluster'].unique()) > 1):
-            
-            cluster_rule_crosstab = pd.crosstab(results_df['ml_cluster'], results_df['rule_category'])
-            
-            if SEABORN_AVAILABLE:
-                sns.heatmap(cluster_rule_crosstab, annot=True, cmap='Blues', ax=ax4)
-            else:
-                im = ax4.imshow(cluster_rule_crosstab.values, cmap='Blues', aspect='auto')
-                
-                # Add values to heatmap
-                for i in range(len(cluster_rule_crosstab.index)):
-                    for j in range(len(cluster_rule_crosstab.columns)):
-                        ax4.text(j, i, cluster_rule_crosstab.iloc[i, j],
-                               ha="center", va="center", 
-                               color="black" if cluster_rule_crosstab.iloc[i, j] < 2 else "white")
-                
-                ax4.set_xticks(range(len(cluster_rule_crosstab.columns)))
-                ax4.set_xticklabels([cat[:10] + '...' if len(cat) > 10 else cat 
-                                   for cat in cluster_rule_crosstab.columns], rotation=45)
-                ax4.set_yticks(range(len(cluster_rule_crosstab.index)))
-                ax4.set_yticklabels([f'C{i}' for i in cluster_rule_crosstab.index])
-            
-            ax4.set_title('ML Clusters vs Rule Categories', fontsize=12)
-            ax4.set_xlabel('Rule Categories')
-            ax4.set_ylabel('ML Clusters')
-        else:
-            ax4.text(0.5, 0.5, 'Cluster-Category\nAnalysis\nNot Available', 
-                    ha='center', va='center', transform=ax4.transAxes,
-                    bbox=dict(boxstyle='round', facecolor='lightgray'))
+        # 4. Character vs Word Count
+        if 'word_count' in results_df.columns and 'character_count' in results_df.columns:
+            scatter = ax4.scatter(results_df['word_count'], results_df['character_count'], 
+                                 alpha=0.7, color='orange', s=60, edgecolor='darkorange')
+            ax4.set_title('Words vs Characters', fontsize=12)
+            ax4.set_xlabel('Word Count')
+            ax4.set_ylabel('Character Count')
+            ax4.grid(True, alpha=0.3)
         
         plt.tight_layout()
         
-        output_file = f'{output_dir}/ml_classification_analysis.png'
+        # Save chart
+        output_file = f'{output_dir}/ml_classification_charts.png'
         plt.savefig(output_file, dpi=VIS_CONFIG['dpi'], bbox_inches='tight', facecolor='white')
         
         print(f"✅ ML classification charts saved: {output_file}")
@@ -279,61 +183,31 @@ def create_ml_classification_charts(results_df: pd.DataFrame, output_dir: str = 
         return ""
 
 def create_comprehensive_dashboard(results_df: pd.DataFrame, output_dir: str = "analysis_outputs") -> str:
-    """
-    Create comprehensive analysis dashboard (without time series)
-    
-    Args:
-        results_df: DataFrame with ML results
-        output_dir: Output directory
-        
-    Returns:
-        str: Path to saved dashboard
-    """
+    """Create comprehensive analysis dashboard"""
     if results_df.empty:
-        print("❌ No data for comprehensive dashboard")
         return ""
-    
-    print("📊 Creating comprehensive analysis dashboard...")
     
     os.makedirs(output_dir, exist_ok=True)
     
     try:
-        fig = plt.figure(figsize=(16, 12))
-        fig.suptitle(f'Thai Voice Data Analysis Dashboard\n'
-                    f'User: {APP_CONFIG["user_login"]} | Analysis Time: {APP_CONFIG["current_datetime"]}', 
-                    fontsize=14, y=0.96)
+        fig = plt.figure(figsize=(18, 12))
         
-        # 1. Word Count Distribution
+        # 1. Word Count Histogram
         ax1 = plt.subplot(2, 3, 1)
-        word_counts = results_df['word_count'].values
-        n_bins = min(15, len(word_counts))
-        counts, bins, patches = ax1.hist(word_counts, bins=n_bins, alpha=0.7, 
-                                       color=VIS_CONFIG['colors']['primary'], 
-                                       edgecolor='navy')
-        
-        mean_words = np.mean(word_counts)
-        ax1.axvline(mean_words, color='red', linestyle='--', linewidth=2, 
-                   label=f'Mean: {mean_words:.1f}')
+        word_counts = results_df['word_count']
+        ax1.hist(word_counts, bins=15, alpha=0.7, color='skyblue', edgecolor='navy')
         ax1.set_title('Word Count Distribution', fontsize=12)
-        ax1.set_xlabel('Words per Record')
+        ax1.set_xlabel('Word Count')
         ax1.set_ylabel('Frequency')
-        ax1.legend()
         ax1.grid(True, alpha=0.3)
         
         # 2. ML Clusters
         ax2 = plt.subplot(2, 3, 2)
-        if 'ml_cluster' in results_df.columns and len(results_df['ml_cluster'].unique()) > 1:
+        if 'ml_cluster' in results_df.columns:
             cluster_counts = results_df['ml_cluster'].value_counts().sort_index()
-            bars = ax2.bar(range(len(cluster_counts)), cluster_counts.values, 
-                          color=plt.cm.Set3(np.linspace(0, 1, len(cluster_counts))), alpha=0.8)
-            ax2.set_title('ML Clusters', fontsize=12)
-            ax2.set_xlabel('Cluster ID')
-            ax2.set_ylabel('Count')
-            ax2.set_xticks(range(len(cluster_counts)))
-            ax2.set_xticklabels([f'C{i}' for i in cluster_counts.index])
-        else:
-            ax2.text(0.5, 0.5, 'Single Cluster', ha='center', va='center', 
-                    transform=ax2.transAxes, bbox=dict(boxstyle='round', facecolor='lightgray'))
+            colors = plt.cm.Set3(np.linspace(0, 1, len(cluster_counts)))
+            ax2.pie(cluster_counts.values, labels=[f'Cluster {i}' for i in cluster_counts.index],
+                   autopct='%1.1f%%', colors=colors, startangle=90)
             ax2.set_title('ML Clusters', fontsize=12)
         
         # 3. Categories
@@ -355,41 +229,30 @@ def create_comprehensive_dashboard(results_df: pd.DataFrame, output_dir: str = "
         ax4.set_ylabel('Character Count')
         ax4.grid(True, alpha=0.3)
         
-        # Add correlation
-        if len(results_df) > 1:
-            corr = np.corrcoef(results_df['word_count'], results_df['character_count'])[0, 1]
-            ax4.text(0.05, 0.95, f'Correlation: {corr:.3f}', 
-                    transform=ax4.transAxes,
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
-        
-        # 5. Category Word Counts
+        # 5. Cluster Word Counts
         ax5 = plt.subplot(2, 3, 5)
-        if 'rule_category' in results_df.columns:
-            cat_word_means = results_df.groupby('rule_category')['word_count'].mean().sort_values(ascending=False)
-            bars = ax5.bar(range(len(cat_word_means)), cat_word_means.values, 
-                          alpha=0.7, color='steelblue')
-            ax5.set_title('Avg Words by Category', fontsize=12)
-            ax5.set_ylabel('Average Words')
-            ax5.set_xticks(range(len(cat_word_means)))
-            ax5.set_xticklabels([cat[:8] + '...' if len(cat) > 8 else cat 
-                               for cat in cat_word_means.index], rotation=45)
+        if 'ml_cluster' in results_df.columns:
+            cluster_word_counts = [results_df[results_df['ml_cluster'] == cluster]['word_count'].values 
+                                 for cluster in sorted(results_df['ml_cluster'].unique())]
+            ax5.boxplot(cluster_word_counts, labels=[f'C{i}' for i in range(len(cluster_word_counts))])
+            ax5.set_title('Word Count by Cluster', fontsize=12)
+            ax5.set_xlabel('Cluster')
+            ax5.set_ylabel('Word Count')
             ax5.grid(True, alpha=0.3)
         
-        # 6. Statistics Summary
+        # 6. Statistics Panel
         ax6 = plt.subplot(2, 3, 6)
         ax6.axis('off')
         
+        # Calculate stats
         total_records = len(results_df)
-        total_words = results_df['word_count'].sum()
         avg_words = results_df['word_count'].mean()
         std_words = results_df['word_count'].std()
         
-        stats_text = f"""📊 ANALYSIS SUMMARY
-{'='*25}
+        stats_text = f"""📊 Analysis Dashboard
 
-📈 Dataset Overview:
-• Total Records: {total_records:,}
-• Total Words: {total_words:,}
+📈 Overview:
+• Total Records: {total_records}
 • Avg Words/Record: {avg_words:.1f} ± {std_words:.1f}
 
 🤖 ML Results:
@@ -409,12 +272,12 @@ def create_comprehensive_dashboard(results_df: pd.DataFrame, output_dir: str = "
 """
         
         ax6.text(0.05, 0.95, stats_text, transform=ax6.transAxes, 
-                fontsize=9, verticalalignment='top', fontfamily='monospace',
-                bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.2))
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.5))
         
         plt.tight_layout()
-        plt.subplots_adjust(top=0.93)
         
+        # Save dashboard
         output_file = f'{output_dir}/comprehensive_dashboard.png'
         plt.savefig(output_file, dpi=VIS_CONFIG['dpi'], bbox_inches='tight', facecolor='white')
         
@@ -424,5 +287,5 @@ def create_comprehensive_dashboard(results_df: pd.DataFrame, output_dir: str = "
         return output_file
         
     except Exception as e:
-        print(f"❌ Comprehensive dashboard error: {e}")
+        print(f"❌ Dashboard creation error: {e}")
         return ""
