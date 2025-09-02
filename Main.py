@@ -9,16 +9,11 @@ from analysisReport import generate_basic_summary, generate_ml_analysis_report, 
 class ThaiVoiceRecorderML:
     
     def __init__(self):
-        # Application info (UPDATED TIMESTAMP)
         self.user_login = "67991023"
-        self.current_datetime = "2025-08-28 07:06:16"
-        self.version = "ml-focused-1.0"
-        
-        # Initialize components
+        self.current_datetime = "2025-09-02 06:47:37"
+        self.version = "ml-focused-1.1"
         self.voice_records = []
         self.recognizer = None
-        
-        # Setup
         self._initialize_application()
     
     def _initialize_application(self):
@@ -28,61 +23,58 @@ class ThaiVoiceRecorderML:
         print(f"📅 Current Time: {self.current_datetime}")
         print(f"🔖 Version: {self.version}")
         
-        # Create directories
         create_directories()
-        
-        # Configure visualization
         configure_matplotlib()
-        
-        # Configure microphone
         self.recognizer = configure_microphone()
-        
-        # Load existing data
         self.voice_records = load_voice_records()
         self.voice_records = cleanup_voice_records(self.voice_records)
-        
-        # Check capabilities
         self._check_capabilities()
         
         print("✅ Application initialized successfully!")
     
     def _check_capabilities(self):
         """Check available capabilities"""
-        print("\n🔍 Checking system capabilities:")
-        print(f"   • Machine Learning: {'✅' if ML_LIBS_AVAILABLE else '❌'}")
-        print(f"   • Voice Records: {len(self.voice_records)} loaded")
+        print("\n🔍 Checking system capabilities...")
         
-        if not ML_LIBS_AVAILABLE:
-            print("⚠️ Install scikit-learn for ML features: pip install scikit-learn")
+        capabilities = []
+        if self.recognizer:
+            capabilities.append("✅ Voice Recording")
+        
+        if ML_LIBS_AVAILABLE:
+            capabilities.append("✅ ML Classification")
+        else:
+            capabilities.append("⚠️ ML Classification (limited)")
+        
+        capabilities.extend(["✅ Data Visualization", "✅ Report Generation", "✅ Data Export/Import"])
+        
+        print("📋 Available features:")
+        for cap in capabilities:
+            print(f"   {cap}")
     
     def record_voice_continuously(self):
         """Start continuous voice recording mode"""
         if not self.recognizer:
-            print("❌ Microphone not configured")
+            print("❌ Voice recorder not available")
             return
         
-        print("\n🔄 Starting continuous voice recording...")
+        print("\n🎙️ Starting continuous voice recording...")
         recorded_texts = continuous_recording_mode(self.recognizer)
         
-        # Store all recorded texts
-        new_records_count = 0
-        for text in recorded_texts:
-            if text.strip():
-                record = store_voice_record(text, len(self.voice_records) + new_records_count + 1)
-                record['word_count'] = fix_thai_word_count(text)
-                self.voice_records.append(record)
-                new_records_count += 1
-        
-        # Save data
-        if new_records_count > 0:
-            save_voice_records(self.voice_records)
-            print(f"💾 Saved {new_records_count} new recordings")
-        
-        # Offer immediate analysis
-        if new_records_count >= 2:
-            choice = input("\n🔬 ต้องการวิเคราะห์ข้อมูลทันทีไหม? (y/n): ")
-            if choice.lower() in ['y', 'yes', 'ใช่']:
-                self.run_complete_analysis()
+        if recorded_texts:
+            print(f"\n📝 Processing {len(recorded_texts)} recordings...")
+            
+            for i, text in enumerate(recorded_texts):
+                record_id = len(self.voice_records) + 1
+                voice_record = store_voice_record(text, record_id)
+                voice_record['word_count'] = fix_thai_word_count(text)
+                self.voice_records.append(voice_record)
+            
+            if save_voice_records(self.voice_records):
+                print(f"✅ Successfully saved {len(recorded_texts)} new recordings")
+            else:
+                print("❌ Failed to save recordings")
+        else:
+            print("ℹ️ No recordings captured")
     
     def view_all_recordings(self):
         """Display all voice recordings"""
@@ -99,7 +91,6 @@ class ThaiVoiceRecorderML:
 {'=' * 50}
 """)
         
-        # Show last 10 records with enhanced info
         display_records = self.voice_records[-10:]
         
         for i, record in enumerate(display_records, 1):
@@ -110,7 +101,6 @@ class ThaiVoiceRecorderML:
 📝 เนื้อหา: {record['text'][:80]}{'...' if len(record['text']) > 80 else ''}
 {'-' * 60}""")
         
-        # Quick statistics
         if len(self.voice_records) >= 1:
             word_counts = [r.get('word_count', 0) for r in self.voice_records]
             avg_words = sum(word_counts) / len(word_counts)
@@ -129,38 +119,32 @@ class ThaiVoiceRecorderML:
             print("❌ ไม่มีข้อมูลสำหรับสร้างกราฟ")
             return
         
-        print("📊 กำลังสร้างกราฟ Word Count Distribution...")
+        print("📊 Creating word count distribution chart...")
         chart_path = create_word_count_distribution_chart(self.voice_records)
         
         if chart_path:
-            print(f"✅ กราฟบันทึกแล้วที่: {chart_path}")
+            print(f"✅ Chart saved: {chart_path}")
         else:
-            print("❌ ไม่สามารถสร้างกราฟได้")
+            print("❌ Failed to create chart")
     
     def run_ml_classification(self):
         """Run machine learning classification"""
+        if not self.voice_records:
+            print("❌ ไม่มีข้อมูลสำหรับการวิเคราะห์ ML")
+            return None
+        
         if not ML_LIBS_AVAILABLE:
-            print("❌ Machine Learning libraries ไม่พร้อมใช้งาน")
-            print("กรุณาติดตั้ง: pip install scikit-learn")
-            return
+            print("❌ ML libraries not available")
+            return None
         
-        if len(self.voice_records) < 2:
-            print("❌ ต้องมีข้อมูลอย่างน้อย 2 รายการสำหรับ ML")
-            return
-        
-        print("🤖 กำลังทำ Machine Learning Classification...")
+        print("🤖 Running ML classification...")
         results_df = ml_text_classification(self.voice_records)
         
         if not results_df.empty:
-            # Create ML visualization
-            chart_path = create_ml_classification_charts(results_df)
-            
-            if chart_path:
-                print(f"✅ ML analysis charts saved: {chart_path}")
-            
+            print("✅ ML classification completed")
             return results_df
         else:
-            print("❌ ไม่สามารถทำ ML classification ได้")
+            print("❌ ML classification failed")
             return None
     
     def run_complete_analysis(self):
@@ -174,90 +158,93 @@ class ThaiVoiceRecorderML:
         
         results_data = {}
         
-        # 1. Word Count Distribution
+        # Word Count Distribution
         print("📊 1. Creating Word Count Distribution...")
         word_chart = create_word_count_distribution_chart(self.voice_records)
         if word_chart:
             results_data['word_distribution'] = word_chart
         
-        # 2. Machine Learning Classification
+        # Machine Learning Classification
         print("🤖 2. Running ML Classification...")
         results_df = self.run_ml_classification()
         if results_df is not None:
             results_data['ml_results'] = results_df
         
-        # 3. Comprehensive Dashboard
+        # Comprehensive Dashboard
         if results_df is not None:
-            print("📊 3. Creating Comprehensive Dashboard...")
+            print("📈 3. Creating Comprehensive Dashboard...")
             dashboard_path = create_comprehensive_dashboard(results_df)
             if dashboard_path:
                 results_data['dashboard'] = dashboard_path
-        
-        # 4. Generate Reports
-        print("📋 4. Generating Analysis Reports...")
-        
-        # Basic summary
-        basic_summary = generate_basic_summary(self.voice_records)
-        basic_report_path = save_analysis_report(basic_summary, "basic")
-        
-        # ML report if available
-        if results_df is not None:
+            
+            # ML Classification Charts
+            print("📊 4. Creating ML Classification Charts...")
+            ml_chart = create_ml_classification_charts(results_df)
+            if ml_chart:
+                results_data['ml_charts'] = ml_chart
+            
+            # ML Analysis Report
+            print("📄 5. Generating ML Analysis Report...")
             ml_report = generate_ml_analysis_report(results_df)
             ml_report_path = save_analysis_report(ml_report, "ml_analysis")
-            results_data['ml_report'] = ml_report_path
+            if ml_report_path:
+                results_data['ml_report'] = ml_report_path
         
-        # Project summary
+        # Basic Summary Report
+        print("📝 6. Generating Basic Summary Report...")
+        basic_summary = generate_basic_summary(self.voice_records)
+        basic_report_path = save_analysis_report(basic_summary, "basic")
+        if basic_report_path:
+            results_data['basic_report'] = basic_report_path
+        
+        # Project Summary
+        print("🎓 7. Creating Project Summary...")
         project_summary = create_project_summary(self.voice_records, results_df)
-        project_report_path = save_analysis_report(project_summary, "project_summary")
-        results_data['project_summary'] = project_report_path
+        project_path = save_analysis_report(project_summary, "project_summary")
+        if project_path:
+            results_data['project_summary'] = project_path
         
-        print("\n✅ การวิเคราะห์ข้อมูลเสร็จสิ้นแบบครบถ้วน!")
-        print(f"📁 ผลลัพธ์บันทึกใน: {FILE_CONFIG['output_dir']}")
-        
-        # Summary of results
-        print(f"\n📊 สรุปผลการวิเคราะห์:")
-        for key, value in results_data.items():
-            if value:
-                print(f"   ✅ {key}: {value if isinstance(value, str) else 'Completed'}")
-        
-        return results_data
+        print("\n✅ การวิเคราะห์เสร็จสิ้น!")
+        print("=" * 60)
+        print("📁 ไฟล์ที่สร้าง:")
+        for key, path in results_data.items():
+            print(f"   • {key}: {path}")
     
     def generate_basic_summary_report(self):
         """Generate and display basic summary"""
         if not self.voice_records:
-            print("❌ ไม่มีข้อมูลสำหรับสร้างสรุป")
+            print("❌ ไม่มีข้อมูลสำหรับสร้างรายงาน")
             return
         
-        print("📊 กำลังสร้างสรุปการวิเคราะห์...")
+        print("📊 Generating basic summary report...")
         summary = generate_basic_summary(self.voice_records)
         
-        # Display summary
+        print("\n" + "="*60)
         print(summary)
+        print("="*60)
         
-        # Save summary
-        report_path = save_analysis_report(summary, "basic_summary")
-        if report_path:
-            print(f"\n📄 สรุปบันทึกไว้ที่: {report_path}")
+        save_path = save_analysis_report(summary, "basic_summary")
+        if save_path:
+            print(f"💾 Report saved to: {save_path}")
     
     def search_recordings(self):
         """Search recordings interface"""
         if not self.voice_records:
-            print("❌ ไม่มีข้อมูลสำหรับค้นหา")
+            print("❌ ไม่มีการบันทึกเสียงให้ค้นหา")
             return
         
-        keyword = input("🔍 ใส่คำค้นหา: ").strip()
+        keyword = input("🔍 ป้อนคำที่ต้องการค้นหา: ").strip()
         if not keyword:
-            print("❌ กรุณาใส่คำค้นหา")
+            print("❌ กรุณาป้อนคำค้นหา")
             return
         
         results = search_voice_records(self.voice_records, keyword)
         
         if results:
-            print(f"\n🎯 พบ {len(results)} รายการที่มี '{keyword}':")
-            print("-" * 50)
-            
-            for i, record in enumerate(results[-5:], 1):  # Show last 5 results
-                print(f"{i:2d}. [{record.get('date', 'N/A')} {record.get('time', 'N/A')}] ({record.get('word_count', 0)} คำ)")
+            print(f"\n🔍 พบ {len(results)} รายการที่มี '{keyword}':")
+            for record in results:
+                print(f"\n📌 ID: {record['id']}")
+                print(f"📅 วันที่: {record.get('date', 'N/A')}")
                 print(f"     {record['text'][:70]}...")
                 print()
         else:
@@ -266,113 +253,86 @@ class ThaiVoiceRecorderML:
     def export_data(self):
         """Export data to CSV"""
         if not self.voice_records:
-            print("❌ ไม่มีข้อมูลสำหรับ export")
+            print("❌ ไม่มีข้อมูลให้ส่งออก")
             return
         
-        export_path = export_to_csv(self.voice_records)
-        if export_path:
-            print(f"📤 ข้อมูล export แล้วที่: {export_path}")
+        print("📤 Exporting data to CSV...")
+        csv_path = export_to_csv(self.voice_records)
+        
+        if csv_path:
+            print(f"✅ Data exported successfully: {csv_path}")
         else:
-            print("❌ ไม่สามารถ export ข้อมูลได้")
+            print("❌ Failed to export data")
     
     def show_main_menu(self):
         """Display main application menu"""
-        print(f"\n{'🎙️ Thai Voice Recorder with ML Analytics' :^70}")
-        print(f"{'👤 User: ' + self.user_login + ' | 📅 ' + self.current_datetime :^70}")
-        print(f"{'🔬 Features: ML Classification + Word Distribution + Visualization' :^70}")
-        print("=" * 70)
-        
-        print("📋 ตัวเลือกหลัก:")
-        print("1. 🔄 บันทึกเสียงต่อเนื่อง")
-        print("2. 👁️  ดูการบันทึกทั้งหมด")
-        print("3. 📊 สร้างกราฟ Word Count Distribution")
-        print("4. 🤖 ทำ Machine Learning Classification")
-        print("5. 🔬 วิเคราะห์ข้อมูลแบบครบถ้วน (ML + Visualization)")
-        print("6. 📋 สร้างสรุปการวิเคราะห์")
-        print("7. 🔍 ค้นหาการบันทึก")
-        print("8. 📤 Export ข้อมูล (CSV)")
-        print("0. 🚪 ออกจากโปรแกรม")
+        print(f"""
+{'='*70}
+🎙️  THAI VOICE RECORDER WITH ML ANALYTICS
+{'='*70}
+👤 User: {self.user_login} | 📅 {self.current_datetime}
+📊 Records: {len(self.voice_records)} | 🤖 ML: {'Available' if ML_LIBS_AVAILABLE else 'Limited'}
+
+1️⃣  📝 Continuous Voice Recording
+2️⃣  👁️  View All Recordings  
+3️⃣  📊 Create Word Count Distribution
+4️⃣  🤖 Run ML Classification
+5️⃣  🔬 Run Complete Analysis
+6️⃣  📄 Generate Basic Summary Report
+7️⃣  🔍 Search Recordings
+8️⃣  📤 Export Data to CSV
+9️⃣  🚪 Exit
+
+{'='*70}""")
     
     def run_interactive_mode(self):
         """Run main interactive interface"""
-        print(f"🚀 เริ่มใช้งาน Thai Voice Recorder with ML Analytics!")
-        print(f"📊 ข้อมูลปัจจุบัน: {len(self.voice_records)} การบันทึก")
-        print(f"🎯 พร้อมสำหรับการวิเคราะห์ด้วย Machine Learning")
+        print("🚀 Starting Thai Voice Recorder with ML Analytics")
         
         while True:
-            self.show_main_menu()
-            choice = input(f"\n🔢 เลือกหมายเลข (0-8): ").strip()
-            
             try:
-                if choice == "1":
+                self.show_main_menu()
+                choice = input("👉 Select an option (1-9): ").strip()
+                
+                if choice == '1':
                     self.record_voice_continuously()
-                    
-                elif choice == "2":
+                elif choice == '2':
                     self.view_all_recordings()
-                    
-                elif choice == "3":
+                elif choice == '3':
                     self.create_word_count_distribution()
-                    
-                elif choice == "4":
+                elif choice == '4':
                     self.run_ml_classification()
-                    
-                elif choice == "5":
+                elif choice == '5':
                     self.run_complete_analysis()
-                    
-                elif choice == "6":
+                elif choice == '6':
                     self.generate_basic_summary_report()
-                    
-                elif choice == "7":
+                elif choice == '7':
                     self.search_recordings()
-                    
-                elif choice == "8":
+                elif choice == '8':
                     self.export_data()
-                    
-                elif choice == "0":
-                    print(f"\n👋 ขอบคุณที่ใช้ Thai Voice Recorder with ML Analytics!")
-                    print(f"📊 รวมการบันทึก: {len(self.voice_records)} รายการ")
-                    print(f"💾 ข้อมูลบันทึกไว้ที่: {FILE_CONFIG['data_file']}")
-                    print(f"📁 ผลการวิเคราะห์: {FILE_CONFIG['output_dir']}")
-                    print(f"👤 ผู้ใช้: {self.user_login}")
-                    print(f"🕒 เซสชันสิ้นสุด: {self.current_datetime}")
-                    print(f"🔖 เวอร์ชัน: {self.version}")
-                    print(f"✨ ขอบคุณที่ใช้บริการ!")
+                elif choice == '9':
+                    print("👋 Thank you for using Thai Voice Recorder!")
                     break
-                    
                 else:
-                    print("❌ เลือกหมายเลขไม่ถูกต้อง (0-8)")
+                    print("❌ Invalid option. Please select 1-9.")
+                
+                input("\n⏸️  Press Enter to continue...")
                 
             except KeyboardInterrupt:
-                print("\n\n⚠️ โปรแกรมถูกหยุดโดยผู้ใช้")
+                print("\n\n👋 Goodbye!")
                 break
             except Exception as e:
-                print(f"❌ เกิดข้อผิดพลาด: {e}")
-            
-            input("\n📱 กด Enter เพื่อดำเนินการต่อ...")
+                print(f"❌ Error: {e}")
+                input("⏸️  Press Enter to continue...")
 
 def main():
     """Main application entry point"""
     try:
-        print("🚀 Starting Thai Voice Recorder with ML Analytics...")
-        print(f"👤 Current User Login: 67991023")
-        print(f"📅 Current Date and Time (UTC): 2025-08-28 07:06:16")
-        print(f"🔬 Features: Voice Recording + ML Classification + Word Distribution + Visualization")
-        print("=" * 80)
-        
-        # Create and run application
         app = ThaiVoiceRecorderML()
         app.run_interactive_mode()
-        
-    except KeyboardInterrupt:
-        print("\n\n⚠️ โปรแกรมถูกหยุดโดยผู้ใช้")
-        print("👋 ขอบคุณที่ใช้บริการ!")
-        
     except Exception as e:
-        print(f"\n❌ เกิดข้อผิดพลาดที่ไม่คาดคิด: {e}")
-        print("🔧 กรุณาตรวจสอบการติดตั้ง dependencies")
-        
-    finally:
-        print("🏁 โปรแกรมสิ้นสุด - Thai Voice Analytics Project")
+        print(f"❌ Fatal error: {e}")
+        print("Please check your system configuration and try again.")
 
 if __name__ == "__main__":
     main()

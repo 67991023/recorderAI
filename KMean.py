@@ -1,6 +1,5 @@
 """
 Machine Learning Functions
-==========================
 ML classification using TF-IDF and K-Means clustering
 """
 
@@ -9,7 +8,6 @@ import pandas as pd
 from typing import List, Dict, Tuple, Optional
 from config import ML_CONFIG
 
-# Check for ML libraries availability
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.cluster import KMeans
@@ -19,26 +17,13 @@ except ImportError:
     ML_LIBS_AVAILABLE = False
 
 def create_tfidf_vectors(texts: List[str]) -> Tuple[Optional[np.ndarray], Optional[TfidfVectorizer]]:
-    """
-    Create TF-IDF vectors from texts
-    
-    Args:
-        texts: List of preprocessed texts
-        
-    Returns:
-        Tuple[Optional[np.ndarray], Optional[TfidfVectorizer]]: TF-IDF matrix and vectorizer
-    """
-    if not ML_LIBS_AVAILABLE:
-        print("❌ ML libraries not available")
-        return None, None
-    
-    if not texts or len(texts) < 2:
-        print("❌ Need at least 2 texts for TF-IDF")
+    """Create TF-IDF vectors from texts"""
+    if not ML_LIBS_AVAILABLE or not texts or len(texts) < 2:
+        print("❌ ML libraries not available or insufficient texts")
         return None, None
     
     try:
         max_features = min(ML_CONFIG['max_tfidf_features'], len(' '.join(texts).split()))
-        
         vectorizer = TfidfVectorizer(
             max_features=max_features,
             min_df=ML_CONFIG['min_df'],
@@ -50,7 +35,6 @@ def create_tfidf_vectors(texts: List[str]) -> Tuple[Optional[np.ndarray], Option
         )
         
         tfidf_matrix = vectorizer.fit_transform(texts)
-        
         print(f"✅ TF-IDF vectors created: {tfidf_matrix.shape}")
         return tfidf_matrix, vectorizer
         
@@ -59,22 +43,9 @@ def create_tfidf_vectors(texts: List[str]) -> Tuple[Optional[np.ndarray], Option
         return None, None
 
 def perform_kmeans_clustering(tfidf_matrix: np.ndarray, n_clusters: int) -> Tuple[Optional[np.ndarray], Optional[KMeans]]:
-    """
-    Perform K-Means clustering on TF-IDF matrix
-    
-    Args:
-        tfidf_matrix: TF-IDF feature matrix
-        n_clusters: Number of clusters
-        
-    Returns:
-        Tuple[Optional[np.ndarray], Optional[KMeans]]: Cluster labels and KMeans model
-    """
-    if not ML_LIBS_AVAILABLE:
-        print("❌ ML libraries not available")
-        return None, None
-    
-    if tfidf_matrix is None:
-        print("❌ TF-IDF matrix is None")
+    """Perform K-Means clustering on TF-IDF matrix"""
+    if not ML_LIBS_AVAILABLE or tfidf_matrix is None:
+        print("❌ ML libraries not available or invalid matrix")
         return None, None
     
     try:
@@ -86,7 +57,6 @@ def perform_kmeans_clustering(tfidf_matrix: np.ndarray, n_clusters: int) -> Tupl
         )
         
         clusters = kmeans.fit_predict(tfidf_matrix)
-        
         print(f"✅ K-Means clustering completed: {n_clusters} clusters")
         return clusters, kmeans
         
@@ -95,38 +65,20 @@ def perform_kmeans_clustering(tfidf_matrix: np.ndarray, n_clusters: int) -> Tupl
         return None, None
 
 def calculate_silhouette_score_safe(tfidf_matrix: np.ndarray, clusters: np.ndarray) -> float:
-    """
-    Calculate silhouette score safely
-    
-    Args:
-        tfidf_matrix: TF-IDF feature matrix
-        clusters: Cluster labels
-        
-    Returns:
-        float: Silhouette score
-    """
+    """Calculate silhouette score safely"""
     if not ML_LIBS_AVAILABLE:
         return 0.0
     
     try:
         if len(set(clusters)) > 1 and tfidf_matrix.shape[0] > len(set(clusters)):
-            score = silhouette_score(tfidf_matrix, clusters)
-            return score
+            return silhouette_score(tfidf_matrix, clusters)
     except Exception as e:
         print(f"⚠️ Silhouette score calculation error: {e}")
     
     return 0.0
 
 def determine_optimal_clusters(tfidf_matrix: np.ndarray) -> int:
-    """
-    Determine optimal number of clusters
-    
-    Args:
-        tfidf_matrix: TF-IDF feature matrix
-        
-    Returns:
-        int: Optimal number of clusters
-    """
+    """Determine optimal number of clusters"""
     n_samples = tfidf_matrix.shape[0]
     
     if n_samples >= 8:
@@ -139,17 +91,7 @@ def determine_optimal_clusters(tfidf_matrix: np.ndarray) -> int:
         return 2
 
 def extract_cluster_keywords(vectorizer: TfidfVectorizer, kmeans: KMeans, top_n: int = 3) -> Dict[int, List[str]]:
-    """
-    Extract keywords for each cluster
-    
-    Args:
-        vectorizer: Fitted TF-IDF vectorizer
-        kmeans: Fitted K-Means model
-        top_n: Number of top keywords per cluster
-        
-    Returns:
-        Dict[int, List[str]]: Cluster keywords
-    """
+    """Extract keywords for each cluster"""
     if not vectorizer or not kmeans:
         return {}
     
@@ -170,16 +112,8 @@ def extract_cluster_keywords(vectorizer: TfidfVectorizer, kmeans: KMeans, top_n:
         return {}
 
 def ml_text_classification(voice_records: List[Dict]) -> pd.DataFrame:
-    """
-    Perform complete ML text classification
-    
-    Args:
-        voice_records: List of voice records
-        
-    Returns:
-        pd.DataFrame: Results with ML classification
-    """
-    from text_processing import preprocess_text_for_ml, fix_thai_word_count, classify_text_by_rules
+    """Perform complete ML text classification"""
+    from Thai_textProcessing import preprocess_text_for_ml, fix_thai_word_count, classify_text_by_rules
     
     if not voice_records or len(voice_records) < 2:
         print("❌ Need at least 2 records for ML classification")
@@ -188,18 +122,15 @@ def ml_text_classification(voice_records: List[Dict]) -> pd.DataFrame:
     print(f"🤖 Starting ML classification for {len(voice_records)} records...")
     
     try:
-        # Fix word counts
+        # Fix word counts and prepare data
         for record in voice_records:
             record['word_count'] = fix_thai_word_count(record['text'])
         
-        # Prepare data
         texts = [record['text'] for record in voice_records]
-        
-        # Preprocess texts
         processed_texts = []
         for text in texts:
             tokens = preprocess_text_for_ml(text)
-            processed_text = ' '.join(tokens[:30])  # Limit tokens
+            processed_text = ' '.join(tokens[:30])
             processed_texts.append(processed_text)
         
         # Create DataFrame
@@ -253,15 +184,7 @@ def ml_text_classification(voice_records: List[Dict]) -> pd.DataFrame:
         return pd.DataFrame()
 
 def analyze_cluster_characteristics(results_df: pd.DataFrame) -> Dict:
-    """
-    Analyze characteristics of each cluster
-    
-    Args:
-        results_df: DataFrame with ML results
-        
-    Returns:
-        Dict: Cluster characteristics
-    """
+    """Analyze characteristics of each cluster"""
     if results_df.empty or 'ml_cluster' not in results_df.columns:
         return {}
     
@@ -280,5 +203,7 @@ def analyze_cluster_characteristics(results_df: pd.DataFrame) -> Dict:
         }
         
         cluster_analysis[cluster_id] = characteristics
+    
+    return cluster_analysis
     
     return cluster_analysis
