@@ -1,13 +1,7 @@
 """
-Voice Recording Functions - FIXED VERSION
-=========================================
+Voice Recording Functions
 Author: User 67991023
-Current Date and Time (UTC): 2025-08-28 07:45:12
-
-FIXES:
-- More precise stop keyword detection
-- Better handling of long sentences
-- Improved microphone timeout settings
+Current Date and Time (UTC): 2025-09-02 06:47:37
 """
 
 import speech_recognition as sr
@@ -18,12 +12,7 @@ import time
 from config import AUDIO_CONFIG, APP_CONFIG
 
 def configure_microphone() -> sr.Recognizer:
-    """
-    Configure microphone and speech recognizer
-    
-    Returns:
-        sr.Recognizer: Configured speech recognizer
-    """
+    """Configure microphone and speech recognizer"""
     recognizer = sr.Recognizer()
     microphone = sr.Microphone()
     
@@ -42,15 +31,7 @@ def configure_microphone() -> sr.Recognizer:
     return recognizer
 
 def record_single_audio(recognizer: sr.Recognizer) -> Optional[str]:
-    """
-    Record a single audio input and convert to text
-    
-    Args:
-        recognizer: Configured speech recognizer
-        
-    Returns:
-        Optional[str]: Transcribed text or None if failed
-    """
+    """Record a single audio input and convert to text"""
     microphone = sr.Microphone()
     
     try:
@@ -58,11 +39,10 @@ def record_single_audio(recognizer: sr.Recognizer) -> Optional[str]:
         
         with microphone as source:
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            # FIXED: Increased timeout and phrase limit for long sentences
             audio = recognizer.listen(
                 source, 
                 timeout=AUDIO_CONFIG['timeout'],
-                phrase_time_limit=120  # Increased from 60 to 120 seconds for long sentences
+                phrase_time_limit=120
             )
             
         print("🔄 กำลังประมวลผล...")
@@ -90,43 +70,22 @@ def record_single_audio(recognizer: sr.Recognizer) -> Optional[str]:
         return None
 
 def is_stop_command(text: str) -> bool:
-    """
-    FIXED: More precise stop command detection
-    
-    Args:
-        text: Input text to check
-        
-    Returns:
-        bool: True if it's a stop command
-    """
+    """Check if text is a stop command"""
     if not text:
         return False
     
     text_lower = text.lower().strip()
     
-    # Exact match stop commands (more precise)
     exact_stop_commands = [
-        'หยุดบันทึก',
-        'หยุด บันทึก', 
-        'จบ',
-        'เสร็จแล้ว',
-        'หยุด',
-        'stop',
-        'end',
-        'ออก',
-        'เลิก',
-        'พอ',
-        'จบการบันทึก',
-        'หยุดการบันทึก'
+        'หยุดบันทึก', 'หยุด บันทึก', 'จบ', 'เสร็จแล้ว', 'หยุด', 'stop', 'end',
+        'ออก', 'เลิก', 'พอ', 'จบการบันทึก', 'หยุดการบันทึก'
     ]
     
-    # Check if the ENTIRE text is a stop command (not just contains it)
     for stop_cmd in exact_stop_commands:
         if text_lower == stop_cmd.lower():
             return True
     
-    # Additional check: if text is very short and contains stop word
-    if len(text_lower.split()) <= 3:  # Only for very short phrases
+    if len(text_lower.split()) <= 3:
         short_stop_words = ['หยุด', 'จบ', 'stop', 'end']
         for stop_word in short_stop_words:
             if text_lower == stop_word.lower():
@@ -135,18 +94,9 @@ def is_stop_command(text: str) -> bool:
     return False
 
 def continuous_recording_mode(recognizer: sr.Recognizer) -> List[str]:
-    """
-    FIXED: Continuous recording mode with better stop detection
-    
-    Args:
-        recognizer: Configured speech recognizer
-        
-    Returns:
-        List[str]: List of recorded texts
-    """
-    print("🔄 เริ่มโหมดบันทึกต่อเนื่อง - IMPROVED VERSION")
+    """Continuous recording mode with stop detection"""
+    print("🔄 เริ่มโหมดบันทึกต่อเนื่อง")
     print("📢 วิธีหยุด: พูดคำว่า 'หยุดบันทึก', 'จบ', หรือ 'stop' เพียงอย่างเดียว")
-    print("⚠️ หมายเหตุ: ต้องพูดคำสั่งหยุดเพียงอย่างเดียว ไม่ใช่เป็นส่วนหนึ่งของประโยค")
     print("=" * 60)
     
     recorded_texts = []
@@ -155,10 +105,8 @@ def continuous_recording_mode(recognizer: sr.Recognizer) -> List[str]:
         text = record_single_audio(recognizer)
         
         if text:
-            # FIXED: Use the new precise stop detection
             if is_stop_command(text):
                 print("🛑 ตรวจพบคำสั่งหยุด - หยุดบันทึกต่อเนื่อง...")
-                print(f"📝 คำสั่งที่ได้รับ: '{text}'")
                 break
             
             recorded_texts.append(text)
@@ -171,16 +119,7 @@ def continuous_recording_mode(recognizer: sr.Recognizer) -> List[str]:
     return recorded_texts
 
 def store_voice_record(text: str, record_id: int) -> Dict:
-    """
-    Create a voice record dictionary with metadata
-    
-    Args:
-        text: The transcribed text
-        record_id: Unique record ID
-        
-    Returns:
-        Dict: Voice record with metadata
-    """
+    """Create a voice record dictionary with metadata"""
     now = datetime.datetime.now()
     
     record = {
@@ -199,12 +138,7 @@ def store_voice_record(text: str, record_id: int) -> Dict:
     return record
 
 def initialize_tts_engine() -> Optional[pyttsx3.Engine]:
-    """
-    Initialize text-to-speech engine
-    
-    Returns:
-        Optional[pyttsx3.Engine]: TTS engine or None if failed
-    """
+    """Initialize text-to-speech engine"""
     try:
         engine = pyttsx3.init()
         return engine
@@ -213,13 +147,7 @@ def initialize_tts_engine() -> Optional[pyttsx3.Engine]:
         return None
 
 def speak_text(engine: Optional[pyttsx3.Engine], text: str) -> None:
-    """
-    Speak text using TTS engine
-    
-    Args:
-        engine: TTS engine
-        text: Text to speak
-    """
+    """Speak text using TTS engine"""
     if engine:
         try:
             engine.say(text)
@@ -228,21 +156,13 @@ def speak_text(engine: Optional[pyttsx3.Engine], text: str) -> None:
             print(f"⚠️ TTS error: {e}")
 
 def test_stop_detection():
-    """
-    Test function to verify stop detection works correctly
-    """
+    """Test function to verify stop detection works correctly"""
     print("🧪 Testing stop detection function...")
     
     test_cases = [
-        ("หยุดบันทึก", True),  # Should stop
-        ("จบ", True),  # Should stop
-        ("stop", True),  # Should stop
-        ("หยุด", True),  # Should stop
-        ("ฉันจะหยุดเดินไปที่ตลาด", False),  # Should NOT stop (contains stop word but not exact)
-        ("การเมืองไทยในยุคปัจจุบันมีการพัฒนาอย่างต่อเนื่อง", False),  # Should NOT stop
-        ("เรื่องนี้จบแล้วใช่ไหม", False),  # Should NOT stop (contains 'จบ' but not exact)
-        ("หยุดบันทึกเลย", False),  # Should NOT stop (contains but not exact)
-        ("เสร็จแล้ว", True),  # Should stop
+        ("หยุดบันทึก", True), ("จบ", True), ("stop", True), ("หยุด", True),
+        ("ฉันจะหยุดเดินไปที่ตลาด", False), ("การเมืองไทยในยุคปัจจุบันมีการพัฒนาอย่างต่อเนื่อง", False),
+        ("เรื่องนี้จบแล้วใช่ไหม", False), ("หยุดบันทึกเลย", False), ("เสร็จแล้ว", True)
     ]
     
     for text, expected in test_cases:
@@ -252,6 +172,5 @@ def test_stop_detection():
     
     print("🧪 Stop detection test completed!")
 
-# Test the function when module is run directly
 if __name__ == "__main__":
     test_stop_detection()
