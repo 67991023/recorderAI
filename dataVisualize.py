@@ -63,7 +63,7 @@ def create_word_count_distribution_chart(voice_records: List[Dict], output_dir: 
     Returns:
         str: Path to saved chart
     """
-    from text_processing import fix_thai_word_count
+    from Thai_textProcessing import fix_thai_word_count
     
     if not voice_records:
         print("❌ No data for word count distribution")
