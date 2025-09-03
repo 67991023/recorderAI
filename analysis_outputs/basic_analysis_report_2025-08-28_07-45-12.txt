@@ -1,1 +1,0 @@
-❌ Error generating summary: cannot import name 'fix_thai_word_count' from 'text_processing' (c:\Users\hp\voiceAIv_2\.venv\Lib\site-packages\text_processing\__init__.py)
