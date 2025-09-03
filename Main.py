@@ -1,6 +1,6 @@
 from config import APP_CONFIG, FILE_CONFIG, AUDIO_CONFIG
 from voiceRecord import configure_microphone, record_single_audio, continuous_recording_mode, store_voice_record
-from Thai_textProcessing import fix_thai_word_count
+from Thai_textProcessing import fix_thai_word_count, validate_voice_records
 from KMean import ml_text_classification, ML_LIBS_AVAILABLE
 from dataVisualize import configure_matplotlib, create_word_count_distribution_chart, create_ml_classification_charts, create_comprehensive_dashboard
 from dataManagement import load_voice_records, save_voice_records, create_directories, cleanup_voice_records, export_to_csv, search_voice_records

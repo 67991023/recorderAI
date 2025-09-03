@@ -1,13 +1,29 @@
+"""
+Analysis Report Functions (No Time Analysis)
+===========================================
+Author: User 67991023
+Current Date and Time (UTC): 2025-08-28 07:12:49
+"""
+
 import os
 from typing import Dict, List
 import datetime
 import pandas as pd
-import numpy as np
+import numpy as np  # Added missing import
 from config import APP_CONFIG, FILE_CONFIG
 
 def generate_basic_summary(voice_records: List[Dict]) -> str:
-    from Thai_textProcessing import fix_thai_word_count
-    from dataManagement import get_data_statistics 
+    """
+    Generate basic analysis summary (without time analysis)
+    
+    Args:
+        voice_records: List of voice records
+        
+    Returns:
+        str: Basic summary text
+    """
+    from text_processing import fix_thai_word_count  # Fixed import name
+    from dataManagement import get_data_statistics   # Fixed import name
     
     if not voice_records:
         return "❌ No data available for analysis"

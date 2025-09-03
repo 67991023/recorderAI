@@ -1,257 +1,215 @@
 """
-Voice Recording Functions - FIXED VERSION
-=========================================
-Author: User 67991023
-Current Date and Time (UTC): 2025-08-28 07:45:12
-
-FIXES:
-- More precise stop keyword detection
-- Better handling of long sentences
-- Improved microphone timeout settings
+Text Processing Functions
+========================
+Thai text processing and word counting functions
 """
 
-import speech_recognition as sr
-import pyttsx3
-import datetime
-from typing import Optional, List, Dict
-import time
-from config import AUDIO_CONFIG, APP_CONFIG
+import re
+from typing import List, Dict
+from config import THAI_CONFIG
 
-def configure_microphone() -> sr.Recognizer:
+# Check for Thai NLP availability
+try:
+    import pythainlp
+    PYTHAINLP_AVAILABLE = True
+except ImportError:
+    PYTHAINLP_AVAILABLE = False
+
+def fix_thai_word_count(text: str) -> int:
     """
-    Configure microphone and speech recognizer
+    Fix word count for Thai text using proper tokenization
     
+    Args:
+        text: Input text
+        
     Returns:
-        sr.Recognizer: Configured speech recognizer
+        int: Corrected word count
     """
-    recognizer = sr.Recognizer()
-    microphone = sr.Microphone()
+    if PYTHAINLP_AVAILABLE:
+        try:
+            words = pythainlp.word_tokenize(text, engine='newmm')
+            valid_words = [word.strip() for word in words if word.strip() and len(word.strip()) > 0]
+            return max(1, len(valid_words))
+        except Exception as e:
+            print(f"⚠️ Thai tokenization error: {e}")
     
+    thai_chars = len([c for c in text if '\u0E00' <= c <= '\u0E7F'])
+    english_words = len([w for w in text.split() if any(c.isalpha() for c in w)])
+    
+    if thai_chars > 0:
+        estimated_thai_words = max(1, thai_chars // 3)
+        return estimated_thai_words + english_words
+    else:
+        return max(1, english_words)
+
+def preprocess_text_for_ml(text: str) -> List[str]:
+    """
+    Preprocess text for machine learning analysis
+    
+    Args:
+        text: Input text
+        
+    Returns:
+        List[str]: List of processed tokens
+    """
     try:
-        with microphone as source:
-            print("🔧 Configuring microphone...")
-            recognizer.adjust_for_ambient_noise(source, duration=1)
-            recognizer.energy_threshold = AUDIO_CONFIG['energy_threshold']
-            recognizer.dynamic_energy_threshold = True
-            recognizer.pause_threshold = AUDIO_CONFIG['pause_threshold']
-            recognizer.phrase_threshold = AUDIO_CONFIG['phrase_threshold']
-            print("✅ Microphone configured successfully")
+        if PYTHAINLP_AVAILABLE:
+            tokens = pythainlp.word_tokenize(text, engine='newmm')
+        else:
+            # Enhanced fallback
+            tokens = []
+            words = text.split()
+            for word in words:
+                if any('\u0E00' <= c <= '\u0E7F' for c in word):
+                    # Thai word - split further
+                    subwords = [word[i:i+3] for i in range(0, len(word), 3) if len(word[i:i+3]) >= 2]
+                    tokens.extend(subwords)
+                else:
+                    tokens.append(word)
+        
+        # Filter tokens
+        stop_words = THAI_CONFIG['stop_words']
+        filtered_tokens = []
+        
+        for token in tokens:
+            token = token.strip().lower()
+            if (token and 
+                len(token) > 1 and 
+                token not in stop_words and 
+                not token.isdigit() and
+                not token in ['', ' ', '\n', '\t'] and
+                len(token) <= 15):
+                filtered_tokens.append(token)
+        
+        return filtered_tokens if filtered_tokens else [text[:10]]
+        
     except Exception as e:
-        print(f"⚠️ Microphone configuration warning: {e}")
-    
-    return recognizer
+        print(f"⚠️ Text preprocessing error: {e}")
+        return [text[:10]] if text else ['default']
 
-def record_single_audio(recognizer: sr.Recognizer) -> Optional[str]:
+def classify_text_by_rules(text: str) -> str:
     """
-    Record a single audio input and convert to text
+    Classify text using rule-based approach
     
     Args:
-        recognizer: Configured speech recognizer
+        text: Input text
         
     Returns:
-        Optional[str]: Transcribed text or None if failed
+        str: Category name
     """
-    microphone = sr.Microphone()
+    text_lower = text.lower()
+    categories = THAI_CONFIG['categories']
     
-    try:
-        print("🎙️ กำลังฟัง... พูดได้เลย!")
+    category_scores = {}
+    for category, keywords in categories.items():
+        score = 0
+        for keyword in keywords:
+            if keyword in text_lower:
+                # Weight longer keywords more
+                score += len(keyword) / 3
+        category_scores[category] = score
+    
+    # Find best category
+    if category_scores:
+        best_category = max(category_scores.items(), key=lambda x: x[1])
+        if best_category[1] > 1:  # Minimum threshold
+            return best_category[0]
+    
+    return 'อื่นๆ'
+
+def validate_voice_records(records: List[Dict]) -> List[Dict]:
+    """
+    Validate and fix voice records data
+    
+    Args:
+        records: List of voice records
         
-        with microphone as source:
-            recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            # FIXED: Increased timeout and phrase limit for long sentences
-            audio = recognizer.listen(
-                source, 
-                timeout=AUDIO_CONFIG['timeout'],
-                phrase_time_limit=120  # Increased from 60 to 120 seconds for long sentences
-            )
+    Returns:
+        List[Dict]: Validated records
+    """
+    validated_records = []
+    
+    for i, record in enumerate(records):
+        if isinstance(record, dict) and 'text' in record:
+            # Fix missing fields
+            if 'word_count' not in record or record['word_count'] <= 0:
+                record['word_count'] = fix_thai_word_count(record['text'])
             
-        print("🔄 กำลังประมวลผล...")
-        
-        text = recognizer.recognize_google(
-            audio, 
-            language=AUDIO_CONFIG['language'],
-            show_all=False
-        )
-        
-        print(f"✅ ได้ข้อความ: {text[:50]}{'...' if len(text) > 50 else ''}")
-        return text
-        
-    except sr.WaitTimeoutError:
-        print("⏰ ไม่มีเสียงในช่วงเวลาที่กำหนด")
-        return None
-    except sr.UnknownValueError:
-        print("❌ ไม่สามารถเข้าใจเสียงได้")
-        return None
-    except sr.RequestError as e:
-        print(f"❌ ข้อผิดพลาดในการรู้จำเสียง: {e}")
-        return None
-    except Exception as e:
-        print(f"❌ ข้อผิดพลาดอื่นๆ: {e}")
-        return None
-
-def is_stop_command(text: str) -> bool:
-    """
-    FIXED: More precise stop command detection
-    
-    Args:
-        text: Input text to check
-        
-    Returns:
-        bool: True if it's a stop command
-    """
-    if not text:
-        return False
-    
-    text_lower = text.lower().strip()
-    
-    # Exact match stop commands (more precise)
-    exact_stop_commands = [
-        'หยุดบันทึก',
-        'หยุด บันทึก', 
-        'จบ',
-        'เสร็จแล้ว',
-        'หยุด',
-        'stop',
-        'end',
-        'ออก',
-        'เลิก',
-        'พอ',
-        'จบการบันทึก',
-        'หยุดการบันทึก'
-    ]
-    
-    # Check if the ENTIRE text is a stop command (not just contains it)
-    for stop_cmd in exact_stop_commands:
-        if text_lower == stop_cmd.lower():
-            return True
-    
-    # Additional check: if text is very short and contains stop word
-    if len(text_lower.split()) <= 3:  # Only for very short phrases
-        short_stop_words = ['หยุด', 'จบ', 'stop', 'end']
-        for stop_word in short_stop_words:
-            if text_lower == stop_word.lower():
-                return True
-    
-    return False
-
-def continuous_recording_mode(recognizer: sr.Recognizer) -> List[str]:
-    """
-    FIXED: Continuous recording mode with better stop detection
-    
-    Args:
-        recognizer: Configured speech recognizer
-        
-    Returns:
-        List[str]: List of recorded texts
-    """
-    print("🔄 เริ่มโหมดบันทึกต่อเนื่อง - IMPROVED VERSION")
-    print("📢 วิธีหยุด: พูดคำว่า 'หยุดบันทึก', 'จบ', หรือ 'stop' เพียงอย่างเดียว")
-    print("⚠️ หมายเหตุ: ต้องพูดคำสั่งหยุดเพียงอย่างเดียว ไม่ใช่เป็นส่วนหนึ่งของประโยค")
-    print("=" * 60)
-    
-    recorded_texts = []
-    
-    while True:
-        text = record_single_audio(recognizer)
-        
-        if text:
-            # FIXED: Use the new precise stop detection
-            if is_stop_command(text):
-                print("🛑 ตรวจพบคำสั่งหยุด - หยุดบันทึกต่อเนื่อง...")
-                print(f"📝 คำสั่งที่ได้รับ: '{text}'")
-                break
+            if 'character_count' not in record:
+                record['character_count'] = len(record['text'])
             
-            recorded_texts.append(text)
-            print(f"📊 บันทึกแล้ว {len(recorded_texts)} รายการ")
-            print(f"📝 ข้อความล่าสุด: {text[:80]}{'...' if len(text) > 80 else ''}")
-        
-        time.sleep(0.5)
+            if 'id' not in record:
+                record['id'] = i + 1
+            
+            # Add category if missing
+            if 'category' not in record:
+                record['category'] = classify_text_by_rules(record['text'])
+            
+            validated_records.append(record)
     
-    print(f"✅ จบการบันทึก: ได้ {len(recorded_texts)} รายการ")
-    return recorded_texts
+    return validated_records
 
-def store_voice_record(text: str, record_id: int) -> Dict:
+def clean_text_for_analysis(text: str) -> str:
     """
-    Create a voice record dictionary with metadata
+    Clean text for analysis purposes
     
     Args:
-        text: The transcribed text
-        record_id: Unique record ID
+        text: Input text
         
     Returns:
-        Dict: Voice record with metadata
+        str: Cleaned text
     """
-    now = datetime.datetime.now()
+    # Remove excessive whitespace
+    cleaned = re.sub(r'\s+', ' ', text)
     
-    record = {
-        'id': record_id,
-        'text': text.strip(),
-        'timestamp': now.isoformat(),
-        'date': now.strftime("%Y-%m-%d"),
-        'time': now.strftime("%H:%M:%S"),
-        'day_of_week': now.strftime("%A"),
-        'character_count': len(text),
-        'user_id': APP_CONFIG['user_login'],
-        'session_time': APP_CONFIG['current_datetime'],
-        'version': APP_CONFIG['version']
+    # Remove special characters but keep Thai and alphanumeric
+    cleaned = re.sub(r'[^\u0E00-\u0E7Fa-zA-Z0-9\s]', '', cleaned)
+    
+    # Strip and return
+    return cleaned.strip()
+
+def extract_keywords_from_text(text: str, top_n: int = 10) -> List[str]:
+    """
+    Extract keywords from text
+    
+    Args:
+        text: Input text
+        top_n: Number of top keywords to return
+        
+    Returns:
+        List[str]: List of keywords
+    """
+    tokens = preprocess_text_for_ml(text)
+    
+    # Count frequency
+    from collections import Counter
+    word_freq = Counter(tokens)
+    
+    # Get top keywords
+    top_keywords = [word for word, freq in word_freq.most_common(top_n)]
+    
+    return top_keywords
+
+def calculate_text_complexity(text: str) -> Dict:
+    """
+    Calculate text complexity metrics
+    
+    Args:
+        text: Input text
+        
+    Returns:
+        Dict: Complexity metrics
+    """
+    words = text.split()
+    sentences = len(re.split(r'[.!?。]', text))
+    
+    metrics = {
+        'word_count': len(words),
+        'sentence_count': max(1, sentences),
+        'avg_words_per_sentence': len(words) / max(1, sentences),
+        'char_count': len(text),
+        'avg_word_length': sum(len(word) for word in words) / max(1, len(words)),
+        'complexity_score': len(words) / max(1, sentences) * (sum(len(word) for word in words) / max(1, len(words)))
     }
     
-    return record
-
-def initialize_tts_engine() -> Optional[pyttsx3.Engine]:
-    """
-    Initialize text-to-speech engine
-    
-    Returns:
-        Optional[pyttsx3.Engine]: TTS engine or None if failed
-    """
-    try:
-        engine = pyttsx3.init()
-        return engine
-    except Exception as e:
-        print(f"⚠️ TTS initialization failed: {e}")
-        return None
-
-def speak_text(engine: Optional[pyttsx3.Engine], text: str) -> None:
-    """
-    Speak text using TTS engine
-    
-    Args:
-        engine: TTS engine
-        text: Text to speak
-    """
-    if engine:
-        try:
-            engine.say(text)
-            engine.runAndWait()
-        except Exception as e:
-            print(f"⚠️ TTS error: {e}")
-
-def test_stop_detection():
-    """
-    Test function to verify stop detection works correctly
-    """
-    print("🧪 Testing stop detection function...")
-    
-    test_cases = [
-        ("หยุดบันทึก", True),  # Should stop
-        ("จบ", True),  # Should stop
-        ("stop", True),  # Should stop
-        ("หยุด", True),  # Should stop
-        ("ฉันจะหยุดเดินไปที่ตลาด", False),  # Should NOT stop (contains stop word but not exact)
-        ("การเมืองไทยในยุคปัจจุบันมีการพัฒนาอย่างต่อเนื่อง", False),  # Should NOT stop
-        ("เรื่องนี้จบแล้วใช่ไหม", False),  # Should NOT stop (contains 'จบ' but not exact)
-        ("หยุดบันทึกเลย", False),  # Should NOT stop (contains but not exact)
-        ("เสร็จแล้ว", True),  # Should stop
-    ]
-    
-    for text, expected in test_cases:
-        result = is_stop_command(text)
-        status = "✅" if result == expected else "❌"
-        print(f"{status} '{text}' -> {result} (expected: {expected})")
-    
-    print("🧪 Stop detection test completed!")
-
-# Test the function when module is run directly
-if __name__ == "__main__":
-    test_stop_detection()
+    return metrics
