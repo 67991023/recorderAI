@@ -1,17 +1,11 @@
-"""
-Configuration file for Thai Voice Recorder with ML Analytics
-===========================================================
-Author: User 67991023
-Current Date and Time (UTC): 2025-08-28 07:45:12
-"""
 
 import os
 from typing import Dict, List
 
 # Application Configuration (UPDATED)
 APP_CONFIG = {
-    'user_login': '67991023',
-    'current_datetime': '2025-08-28 07:45:12',
+    'user_login': 'Sirana Saesoo',
+    'current_datetime': '2025-03-09 014:38:12',
     'version': 'ml-focused-1.1',
     'app_name': 'Thai Voice Recorder with ML Analytics'
 }

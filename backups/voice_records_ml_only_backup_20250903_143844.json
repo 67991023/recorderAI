@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "user_id": "67991023",
+    "last_updated": "2025-08-28 07:45:12",
+    "total_records": 2,
+    "version": "ml-focused-1.1",
+    "app_name": "Thai Voice Recorder with ML Analytics"
+  },
+  "voice_records": [
+    {
+      "id": 1,
+      "text": "Generation Break 1 ความสามารถนี้จะทำงานเมื่อคุณมี G Unit หงายอยู่บนช่องแวน G2 คน 1 ใบหรือมากกว่าเคาน์เตอร์บาร์ 1 เมื่ออยู่ในนี้โจมตีมันกลายเป็นกากถ้าอยู่ในนี้ถูกสามารถจ่ายค่าฟ้อนถ้าจ่ายทุกกรณีนั้นและอยู่ในนั้นได้รับ Power 4000 จนจบของเมื่อจบเธอนั้นเกี่ยวกับการ 1 รายละเอียด",
+      "timestamp": "2025-09-03T14:31:40.342184",
+      "date": "2025-09-03",
+      "time": "14:31:40",
+      "day_of_week": "Wednesday",
+      "character_count": 273,
+      "user_id": "67991023",
+      "session_time": "2025-08-28 07:45:12",
+      "version": "ml-focused-1.1",
+      "word_count": 67
+    },
+    {
+      "id": 3,
+      "text": "อยู่บันทึก",
+      "timestamp": "2025-09-03T14:31:40.351164",
+      "date": "2025-09-03",
+      "time": "14:31:40",
+      "day_of_week": "Wednesday",
+      "character_count": 10,
+      "user_id": "67991023",
+      "session_time": "2025-08-28 07:45:12",
+      "version": "ml-focused-1.1",
+      "word_count": 2
+    }
+  ]
+}

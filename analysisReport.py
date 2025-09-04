@@ -22,7 +22,7 @@ def generate_basic_summary(voice_records: List[Dict]) -> str:
     Returns:
         str: Basic summary text
     """
-    from text_processing import fix_thai_word_count  # Fixed import name
+    from Thai_textProcessing import fix_thai_word_count  # Fixed import name
     from dataManagement import get_data_statistics   # Fixed import name
     
     if not voice_records:
