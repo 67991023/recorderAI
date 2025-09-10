@@ -1,9 +1,3 @@
-"""
-Text Processing Functions
-========================
-Thai text processing and word counting functions
-"""
-
 import re
 from typing import List, Dict
 from config import THAI_CONFIG
@@ -16,15 +10,6 @@ except ImportError:
     PYTHAINLP_AVAILABLE = False
 
 def fix_thai_word_count(text: str) -> int:
-    """
-    Fix word count for Thai text using proper tokenization
-    
-    Args:
-        text: Input text
-        
-    Returns:
-        int: Corrected word count
-    """
     if PYTHAINLP_AVAILABLE:
         try:
             words = pythainlp.word_tokenize(text, engine='newmm')
@@ -43,31 +28,19 @@ def fix_thai_word_count(text: str) -> int:
         return max(1, english_words)
 
 def preprocess_text_for_ml(text: str) -> List[str]:
-    """
-    Preprocess text for machine learning analysis
-    
-    Args:
-        text: Input text
-        
-    Returns:
-        List[str]: List of processed tokens
-    """
     try:
         if PYTHAINLP_AVAILABLE:
             tokens = pythainlp.word_tokenize(text, engine='newmm')
         else:
-            # Enhanced fallback
             tokens = []
             words = text.split()
             for word in words:
                 if any('\u0E00' <= c <= '\u0E7F' for c in word):
-                    # Thai word - split further
                     subwords = [word[i:i+3] for i in range(0, len(word), 3) if len(word[i:i+3]) >= 2]
                     tokens.extend(subwords)
                 else:
                     tokens.append(word)
         
-        # Filter tokens
         stop_words = THAI_CONFIG['stop_words']
         filtered_tokens = []
         
@@ -88,15 +61,6 @@ def preprocess_text_for_ml(text: str) -> List[str]:
         return [text[:10]] if text else ['default']
 
 def classify_text_by_rules(text: str) -> str:
-    """
-    Classify text using rule-based approach
-    
-    Args:
-        text: Input text
-        
-    Returns:
-        str: Category name
-    """
     text_lower = text.lower()
     categories = THAI_CONFIG['categories']
     
@@ -118,30 +82,16 @@ def classify_text_by_rules(text: str) -> str:
     return 'อื่นๆ'
 
 def validate_voice_records(records: List[Dict]) -> List[Dict]:
-    """
-    Validate and fix voice records data
-    
-    Args:
-        records: List of voice records
-        
-    Returns:
-        List[Dict]: Validated records
-    """
     validated_records = []
     
     for i, record in enumerate(records):
         if isinstance(record, dict) and 'text' in record:
-            # Fix missing fields
             if 'word_count' not in record or record['word_count'] <= 0:
                 record['word_count'] = fix_thai_word_count(record['text'])
-            
             if 'character_count' not in record:
                 record['character_count'] = len(record['text'])
-            
             if 'id' not in record:
                 record['id'] = i + 1
-            
-            # Add category if missing
             if 'category' not in record:
                 record['category'] = classify_text_by_rules(record['text'])
             
@@ -150,56 +100,22 @@ def validate_voice_records(records: List[Dict]) -> List[Dict]:
     return validated_records
 
 def clean_text_for_analysis(text: str) -> str:
-    """
-    Clean text for analysis purposes
-    
-    Args:
-        text: Input text
-        
-    Returns:
-        str: Cleaned text
-    """
-    # Remove excessive whitespace
     cleaned = re.sub(r'\s+', ' ', text)
-    
-    # Remove special characters but keep Thai and alphanumeric
     cleaned = re.sub(r'[^\u0E00-\u0E7Fa-zA-Z0-9\s]', '', cleaned)
     
-    # Strip and return
     return cleaned.strip()
 
 def extract_keywords_from_text(text: str, top_n: int = 10) -> List[str]:
-    """
-    Extract keywords from text
-    
-    Args:
-        text: Input text
-        top_n: Number of top keywords to return
-        
-    Returns:
-        List[str]: List of keywords
-    """
     tokens = preprocess_text_for_ml(text)
     
-    # Count frequency
     from collections import Counter
     word_freq = Counter(tokens)
     
-    # Get top keywords
     top_keywords = [word for word, freq in word_freq.most_common(top_n)]
     
     return top_keywords
 
 def calculate_text_complexity(text: str) -> Dict:
-    """
-    Calculate text complexity metrics
-    
-    Args:
-        text: Input text
-        
-    Returns:
-        Dict: Complexity metrics
-    """
     words = text.split()
     sentences = len(re.split(r'[.!?。]', text))
     
