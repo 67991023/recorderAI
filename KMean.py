@@ -1,9 +1,3 @@
-"""
-Machine Learning Functions
-==========================
-ML classification using TF-IDF and K-Means clustering
-"""
-
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Optional
@@ -39,7 +33,7 @@ def create_tfidf_vectors(texts: List[str]) -> Tuple[Optional[np.ndarray], Option
     try:
         max_features = min(ML_CONFIG['max_tfidf_features'], len(' '.join(texts).split()))
         
-        vectorizer = TfidfVectorizer(
+        vectorizer = TfidfVectorizer(  # counts the words and considers the importance of words across all documents.
             max_features=max_features,
             min_df=ML_CONFIG['min_df'],
             max_df=ML_CONFIG['max_df'],
