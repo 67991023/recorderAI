@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecorderAI - Voice Recordings</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background:  linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius:  10px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .recordings-list {
+            margin-top: 20px;
+        }
+        .recording-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom:  15px;
+            border-left: 4px solid #667eea;
+        }
+        .recording-meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        .recording-text {
+            color: #333;
+            line-height: 1.6;
+        }
+        .loading {
+            text-align: center;
+            color: #667eea;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ RecorderAI</h1>
+        <p class="subtitle">Thai Voice Recorder with ML Analytics</p>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalRecordings">0</div>
+                <div class="stat-label">Total Recordings</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgWords">0</div>
+                <div class="stat-label">Average Words</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="maxWords">0</div>
+                <div class="stat-label">Max Words</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="minWords">0</div>
+                <div class="stat-label">Min Words</div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>➕ Add New Recording</h2>
+            <form id="recordingForm">
+                <div class="form-group">
+                    <label for="textInput">Recording Text:</label>
+                    <textarea id="textInput" required placeholder="Enter your recording text... "></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="wordCount">Word Count:</label>
+                    <input type="number" id="wordCount" required placeholder="Number of words">
+                </div>
+                <button type="submit">Save Recording</button>
+            </form>
+        </div>
+
+        <div class="recordings-list">
+            <h2>📋 Recent Recordings</h2>
+            <div id="recordingsList" class="loading">Loading recordings...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        async function fetchStatistics() {
+            try {
+                const response = await fetch(`${API_URL}/statistics`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('totalRecordings').textContent = data.statistics.total_recordings || 0;
+                    document. getElementById('avgWords').textContent = Math.round(data.statistics.avg_words) || 0;
+                    document.getElementById('maxWords').textContent = data.statistics.max_words || 0;
+                    document.getElementById('minWords').textContent = data.statistics.min_words || 0;
+                }
+            } catch (error) {
+                console.error('Error fetching statistics:', error);
+            }
+        }
+
+        async function fetchRecordings() {
+            try {
+                const response = await fetch(`${API_URL}/recordings`);
+                const data = await response.json();
+                const listContainer = document.getElementById('recordingsList');
+                
+                if (data.success && data.data.length > 0) {
+                    listContainer. innerHTML = data.data.map(rec => `
+                        <div class="recording-card">
+                            <div class="recording-meta">
+                                ID: ${rec.id} | Words: ${rec.word_count} | Created: ${new Date(rec.created_at).toLocaleString()}
+                            </div>
+                            <div class="recording-text">${rec.text}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    listContainer.innerHTML = '<p style="text-align: center; color: #666;">No recordings yet.  Add your first recording above!</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching recordings:', error);
+                document.getElementById('recordingsList').innerHTML = '<p style="color: red;">Error loading recordings</p>';
+            }
+        }
+
+        document.getElementById('recordingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const text = document.getElementById('textInput').value;
+            const wordCount = parseInt(document.getElementById('wordCount').value);
+            
+            try {
+                const response = await fetch(`${API_URL}/recordings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, word_count: wordCount })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Recording saved successfully!');
+                    document. getElementById('recordingForm').reset();
+                    fetchRecordings();
+                    fetchStatistics();
+                } else {
+                    alert('Error saving recording');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error saving recording');
+            }
+        });
+
+        // Initial load
+        fetchStatistics();
+        fetchRecordings();
+        
+        // Refresh every 10 seconds
+        setInterval(() => {
+            fetchRecordings();
+            fetchStatistics();
+        }, 10000);
+    </script>
+</body>
+</html>
