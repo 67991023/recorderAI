@@ -5,6 +5,9 @@ from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 
+from kmeans_service import get_clustering_results, fetch_recordings, run_clustering
+from test_data import get_demo_clusters
+
 app = Flask(__name__)
 CORS(app)
 
@@ -71,6 +74,65 @@ def get_statistics():
     cur.close()
     conn.close()
     return jsonify({"success": True, "statistics": stats})
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze_recordings():
+    """Submit recordings for K-Means clustering analysis.
+
+    Accepts optional JSON body with a 'recordings' list; if omitted,
+    fetches all recordings from the database.
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        recordings = body.get('recordings')
+
+        if recordings is None:
+            recordings = fetch_recordings()
+
+        result = run_clustering(recordings)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route('/api/clusters', methods=['GET'])
+def get_clusters():
+    """Get current clustering results with visualization data."""
+    try:
+        result = get_clustering_results()
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route('/api/cluster-stats', methods=['GET'])
+def get_cluster_stats():
+    """Get detailed cluster statistics and metrics."""
+    try:
+        result = get_clustering_results()
+        if not result.get('success'):
+            return jsonify(result), 400
+
+        stats_response = {
+            "success": True,
+            "n_clusters": result["n_clusters"],
+            "silhouette_score": result["silhouette_score"],
+            "total_recordings": result["total_recordings"],
+            "cluster_stats": result["cluster_stats"],
+            "cluster_centers": result["cluster_centers"],
+        }
+        return jsonify(stats_response), 200
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route('/api/demo-clusters', methods=['GET'])
+def demo_clusters():
+    """Return pre-computed demo clustering results (no DB required)."""
+    return jsonify(get_demo_clusters()), 200
+
 
 if __name__ == '__main__': 
     app.run(host='0.0.0.0', port=5000, debug=True)

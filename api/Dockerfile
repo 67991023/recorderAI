@@ -13,7 +13,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY app.py . 
+COPY app.py .
+COPY kmeans_service.py .
+COPY test_data.py .
 
 # Expose port
 EXPOSE 5000
