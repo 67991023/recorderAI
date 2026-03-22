@@ -1,9 +1,33 @@
 /**
- * dashboard.js – Tab switching, recordings page, and cluster page logic.
+ * dashboard.js – Tab switching, recordings page (with selection + audio/STT),
+ * and cluster page logic.
  */
 
-import { getRecordings, createRecording, getStatistics, analyzeClusters, getClusters, getDemoClusters } from './api.js';
+import {
+  getRecordings, createRecording, getStatistics,
+  analyzeAll, analyzeSelected, getDemoClusters,
+} from './api.js';
 import { renderScatterChart, renderDoughnutChart, destroyCharts } from './charts.js';
+import { AudioRecorder }    from './recorder.js';
+import { SpeechTranscriber } from './transcriber.js';
+
+/* ─────────────────────────────────────────
+   Selection state – shared between pages
+───────────────────────────────────────── */
+const selectedIds = new Set();
+
+function updateSelectionUI() {
+  const count = selectedIds.size;
+  const selCount   = document.getElementById('selectionCount');
+  const btnSel     = document.getElementById('btnAnalyzeSelected');
+  const btnRunSel  = document.getElementById('btnRunSelected');
+  const badge      = document.getElementById('selectedCountBadge');
+
+  if (selCount)  selCount.textContent  = `${count} selected`;
+  if (btnSel)    btnSel.disabled       = count === 0;
+  if (btnRunSel) btnRunSel.disabled    = count === 0;
+  if (badge)     badge.textContent     = count;
+}
 
 /* ─────────────────────────────────────────
    Tab navigation
@@ -24,7 +48,7 @@ function initTabs() {
 }
 
 /* ─────────────────────────────────────────
-   Recordings page
+   Recordings page – statistics & list
 ───────────────────────────────────────── */
 async function loadStatistics() {
   try {
@@ -43,16 +67,41 @@ async function loadRecordings() {
   try {
     const { data, success } = await getRecordings();
     if (success && data.length > 0) {
-      container.innerHTML = data.map(rec => `
-        <div class="recording-card">
-          <div class="recording-meta">
-            ID: ${rec.id} &nbsp;|&nbsp; Words: ${rec.word_count}
-            &nbsp;|&nbsp; ${new Date(rec.created_at).toLocaleString()}
-          </div>
-          <div class="recording-text">${escHtml(rec.text)}</div>
-        </div>`).join('');
+      container.innerHTML = data.map(rec => {
+        const isChecked = selectedIds.has(rec.id);
+        return `
+          <div class="recording-card${isChecked ? ' selected' : ''}" data-id="${rec.id}">
+            <input
+              type="checkbox"
+              class="recording-checkbox"
+              data-id="${rec.id}"
+              ${isChecked ? 'checked' : ''}
+              aria-label="Select recording ${rec.id}"
+            />
+            <div class="recording-body">
+              <div class="recording-meta">
+                <span>🆔 ${rec.id}</span>
+                <span>📝 ${rec.word_count} words</span>
+                <span>🔤 ${rec.character_count ?? '–'} chars</span>
+                <span>🕐 ${new Date(rec.created_at).toLocaleString()}</span>
+              </div>
+              <div class="recording-text">${escHtml(rec.text)}</div>
+            </div>
+          </div>`;
+      }).join('');
+
+      // Attach checkbox listeners
+      container.querySelectorAll('.recording-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const id = Number(cb.dataset.id);
+          if (cb.checked) selectedIds.add(id);
+          else            selectedIds.delete(id);
+          cb.closest('.recording-card').classList.toggle('selected', cb.checked);
+          updateSelectionUI();
+        });
+      });
     } else {
-      container.innerHTML = '<p style="text-align:center;color:#777">No recordings yet. Add one above!</p>';
+      container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:24px">No recordings yet. Add one above!</p>';
     }
   } catch (err) {
     container.innerHTML = `<div class="alert alert-error">Error loading recordings: ${escHtml(err.message)}</div>`;
@@ -60,12 +109,14 @@ async function loadRecordings() {
 }
 
 function initRecordingForm() {
-  const form = document.getElementById('recordingForm');
+  const form      = document.getElementById('recordingForm');
+  const textInput = document.getElementById('textInput');
+  const wcInput   = document.getElementById('wordCount');
+  const btnClear  = document.getElementById('btnClearForm');
+
   if (!form) return;
 
   // Auto-compute word count
-  const textInput = document.getElementById('textInput');
-  const wcInput   = document.getElementById('wordCount');
   textInput.addEventListener('input', () => {
     wcInput.value = textInput.value.trim().split(/\s+/).filter(Boolean).length;
   });
@@ -91,6 +142,174 @@ function initRecordingForm() {
       btn.textContent = '💾 Save Recording';
     }
   });
+
+  btnClear?.addEventListener('click', () => { form.reset(); });
+}
+
+/* ─────────────────────────────────────────
+   Selection toolbar buttons
+───────────────────────────────────────── */
+function initSelectionToolbar() {
+  document.getElementById('btnSelectAll')?.addEventListener('click', () => {
+    document.querySelectorAll('.recording-checkbox').forEach(cb => {
+      cb.checked = true;
+      selectedIds.add(Number(cb.dataset.id));
+      cb.closest('.recording-card').classList.add('selected');
+    });
+    updateSelectionUI();
+  });
+
+  document.getElementById('btnDeselectAll')?.addEventListener('click', () => {
+    document.querySelectorAll('.recording-checkbox').forEach(cb => {
+      cb.checked = false;
+      cb.closest('.recording-card').classList.remove('selected');
+    });
+    selectedIds.clear();
+    updateSelectionUI();
+  });
+
+  document.getElementById('btnAnalyzeSelected')?.addEventListener('click', () => {
+    if (selectedIds.size === 0) return;
+    switchToClusteringAndRun('selected');
+  });
+}
+
+/* ─────────────────────────────────────────
+   Audio recorder
+───────────────────────────────────────── */
+function initAudioRecorder() {
+  const btnStart  = document.getElementById('btnStartRec');
+  const btnStop   = document.getElementById('btnStopRec');
+  const btnPlay   = document.getElementById('btnPlayRec');
+  const waveWrap  = document.getElementById('waveformContainer');
+  const canvas    = document.getElementById('waveformCanvas');
+
+  if (!btnStart) return;
+
+  let lastBlob = null;
+
+  const recorder = new AudioRecorder({
+    canvas,
+    onStop: (blob) => {
+      lastBlob = blob;
+      btnPlay.disabled = false;
+      showToast('Recording stopped. Click ▶ Play to listen.', 'info');
+    },
+  });
+
+  btnStart.addEventListener('click', async () => {
+    try {
+      await recorder.start();
+      btnStart.disabled = true;
+      btnStop.disabled  = false;
+      btnPlay.disabled  = true;
+      waveWrap.classList.add('visible');
+    } catch (err) {
+      showToast(`Microphone error: ${err.message}`, 'error');
+    }
+  });
+
+  btnStop.addEventListener('click', () => {
+    recorder.stop();
+    btnStart.disabled = false;
+    btnStop.disabled  = true;
+    waveWrap.classList.remove('visible');
+  });
+
+  btnPlay.addEventListener('click', () => {
+    if (lastBlob) {
+      const url   = URL.createObjectURL(lastBlob);
+      const audio = new Audio(url);
+      audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+      audio.play();
+    }
+  });
+}
+
+/* ─────────────────────────────────────────
+   Speech-to-Text
+───────────────────────────────────────── */
+function initSTT() {
+  const btnStart  = document.getElementById('btnStartSTT');
+  const btnStop   = document.getElementById('btnStopSTT');
+  const langSel   = document.getElementById('sttLang');
+  const statusEl  = document.getElementById('sttStatus');
+  const textInput = document.getElementById('textInput');
+  const wcInput   = document.getElementById('wordCount');
+
+  if (!btnStart) return;
+
+  if (!SpeechTranscriber.isSupported()) {
+    btnStart.disabled = true;
+    btnStart.title    = 'Speech recognition requires Chrome or Edge';
+    showToast('🎤 STT requires Chrome or Edge browser.', 'info');
+  }
+
+  let transcriber = null;
+  let partialText = '';
+  let accumulatedFinal = '';
+
+  const updateTextarea = (partial, isFinal) => {
+    if (isFinal) {
+      accumulatedFinal += partial + ' ';
+      partialText = '';
+    } else {
+      partialText = partial;
+    }
+    textInput.value = (accumulatedFinal + partialText).trimStart();
+    wcInput.value   = textInput.value.trim().split(/\s+/).filter(Boolean).length;
+  };
+
+  btnStart.addEventListener('click', () => {
+    accumulatedFinal = textInput.value.trim();
+    if (accumulatedFinal) accumulatedFinal += ' ';
+    partialText = '';
+
+    try {
+      transcriber = new SpeechTranscriber({
+        lang: langSel?.value || 'th-TH',
+        onResult: (text, isFinal, confidence) => {
+          updateTextarea(text, isFinal);
+          if (statusEl) {
+            const conf = confidence ? ` (${(confidence * 100).toFixed(0)}%)` : '';
+            statusEl.style.display = 'block';
+            statusEl.textContent   = isFinal
+              ? `✅ Transcribed${conf}: "${text}"`
+              : `🎙️ Listening: "${text}"`;
+          }
+        },
+        onError: (e) => {
+          showToast(`STT error: ${e.error || e.message || 'unknown'}`, 'error');
+          btnStart.disabled = false;
+          btnStop.disabled  = true;
+          if (statusEl) statusEl.style.display = 'none';
+        },
+        onEnd: () => {
+          btnStart.disabled = false;
+          btnStop.disabled  = true;
+        },
+        onStatusChange: (status) => {
+          if (statusEl) {
+            statusEl.style.display = status === 'listening' ? 'block' : 'none';
+            if (status === 'listening') statusEl.textContent = '🎙️ Listening…';
+          }
+        },
+      });
+
+      transcriber.start();
+      btnStart.disabled = true;
+      btnStop.disabled  = false;
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  btnStop.addEventListener('click', () => {
+    transcriber?.stop();
+    btnStart.disabled = false;
+    btnStop.disabled  = true;
+    if (statusEl) statusEl.style.display = 'none';
+  });
 }
 
 /* ─────────────────────────────────────────
@@ -98,16 +317,40 @@ function initRecordingForm() {
 ───────────────────────────────────────── */
 let lastClusterResult = null;
 
-async function loadClustering(useDemo = false) {
-  const section   = document.getElementById('clusterResults');
-  const btnRun    = document.getElementById('btnRunAnalysis');
-  const btnDemo   = document.getElementById('btnDemoAnalysis');
+function switchToClusteringAndRun(mode = 'all') {
+  // Switch tab
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const tab = document.querySelector('[data-page="page-clustering"]');
+  if (tab) tab.classList.add('active');
+  document.getElementById('page-clustering')?.classList.add('active');
 
-  [btnRun, btnDemo].forEach(b => { if (b) b.disabled = true; });
-  section.innerHTML = '<div class="loading" style="text-align:center;padding:24px;color:#667eea">⏳ Running K-Means clustering…</div>';
+  loadClustering(mode);
+}
+
+async function loadClustering(mode = 'all') {
+  const section    = document.getElementById('clusterResults');
+  const btnAll     = document.getElementById('btnRunAnalysis');
+  const btnSel     = document.getElementById('btnRunSelected');
+  const btnDemo    = document.getElementById('btnDemoAnalysis');
+
+  [btnAll, btnSel, btnDemo].forEach(b => { if (b) b.disabled = true; });
+  section.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted)"><span class="spinner" style="border-color:rgba(59,130,246,.3);border-top-color:#3b82f6;width:24px;height:24px"></span> Running K-Means clustering…</div>';
 
   try {
-    const result = useDemo ? await getDemoClusters() : await analyzeClusters();
+    let result;
+    if (mode === 'demo') {
+      result = await getDemoClusters();
+    } else if (mode === 'selected') {
+      if (selectedIds.size === 0) {
+        section.innerHTML = '<div class="alert alert-info">No recordings selected. Please check the boxes on the Dashboard tab first.</div>';
+        return;
+      }
+      result = await analyzeSelected([...selectedIds]);
+    } else {
+      result = await analyzeAll();
+    }
+
     if (!result.success) {
       section.innerHTML = `<div class="alert alert-error">${escHtml(result.error)}</div>`;
       return;
@@ -117,7 +360,8 @@ async function loadClustering(useDemo = false) {
   } catch (err) {
     section.innerHTML = `<div class="alert alert-error">Error: ${escHtml(err.message)}</div>`;
   } finally {
-    [btnRun, btnDemo].forEach(b => { if (b) b.disabled = false; });
+    [btnAll, btnSel, btnDemo].forEach(b => { if (b) b.disabled = false; });
+    updateSelectionUI(); // keep selected state in sync
   }
 }
 
@@ -173,13 +417,13 @@ function renderClusteringUI(result) {
     <!-- Silhouette meter -->
     <div class="card" style="padding:16px 20px;margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="font-weight:600;font-size:0.9rem">Cluster Quality (Silhouette)</span>
+        <span style="font-weight:600;font-size:0.9rem;color:var(--text)">Cluster Quality (Silhouette)</span>
         <span style="font-weight:700;color:var(--primary)">${result.silhouette_score.toFixed(4)}</span>
       </div>
       <div class="silhouette-bar-wrap">
         <div class="silhouette-bar" style="width:${silW}%"></div>
       </div>
-      <div style="font-size:0.78rem;color:var(--muted);margin-top:4px">
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px">
         Score range: −1 (bad) → +1 (perfect). Above 0.5 is considered good.
       </div>
     </div>
@@ -223,8 +467,9 @@ function renderClusteringUI(result) {
 }
 
 function initClusteringPage() {
-  document.getElementById('btnRunAnalysis')?.addEventListener('click',  () => loadClustering(false));
-  document.getElementById('btnDemoAnalysis')?.addEventListener('click', () => loadClustering(true));
+  document.getElementById('btnRunAnalysis')?.addEventListener('click',  () => loadClustering('all'));
+  document.getElementById('btnRunSelected')?.addEventListener('click',  () => loadClustering('selected'));
+  document.getElementById('btnDemoAnalysis')?.addEventListener('click', () => loadClustering('demo'));
 }
 
 /* ─────────────────────────────────────────
@@ -240,11 +485,10 @@ function escHtml(str) {
 
 function showToast(msg, type = 'info') {
   const el = document.createElement('div');
-  el.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'error' : 'info'}`;
-  el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:999;max-width:320px;box-shadow:0 4px 16px rgba(0,0,0,.15)';
+  el.className = `toast alert alert-${type === 'success' ? 'success' : type === 'error' ? 'error' : 'info'}`;
   el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
+  setTimeout(() => el.remove(), 3500);
 }
 
 /* ─────────────────────────────────────────
@@ -253,6 +497,9 @@ function showToast(msg, type = 'info') {
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initRecordingForm();
+  initSelectionToolbar();
+  initAudioRecorder();
+  initSTT();
   initClusteringPage();
 
   // Initial data load

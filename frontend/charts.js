@@ -1,15 +1,16 @@
 /**
  * charts.js – Chart.js helpers for the clustering scatter plot
  * and cluster-size doughnut chart.
+ * Updated for dark theme.
  */
 
-// Palette – one colour per cluster (up to 5)
+// Palette – one colour per cluster (up to 5), matching CSS variables
 const CLUSTER_COLORS = [
-  { bg: 'rgba(102,126,234,0.75)', border: '#667eea' },
-  { bg: 'rgba(245, 87,108,0.75)', border: '#f5576c' },
-  { bg: 'rgba( 67,233,123,0.75)', border: '#43e97b' },
-  { bg: 'rgba(246,211,101,0.75)', border: '#f6d365' },
-  { bg: 'rgba( 79,172,254,0.75)', border: '#4facfe' },
+  { bg: 'rgba(59,130,246,0.75)',   border: '#3b82f6' },  // Blue-500
+  { bg: 'rgba(239,68,68,0.75)',    border: '#ef4444' },  // Red-500
+  { bg: 'rgba(16,185,129,0.75)',   border: '#10b981' },  // Emerald-500
+  { bg: 'rgba(245,158,11,0.75)',   border: '#f59e0b' },  // Amber-500
+  { bg: 'rgba(139,92,246,0.75)',   border: '#8b5cf6' },  // Violet-500
 ];
 
 let scatterChart = null;
@@ -81,7 +82,10 @@ export function renderScatterChart(canvas, clusterResult) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top', labels: { usePointStyle: true, padding: 16 } },
+        legend: {
+          position: 'top',
+          labels: { usePointStyle: true, padding: 16, color: '#f1f5f9' },
+        },
         tooltip: {
           callbacks: {
             label(ctx) {
@@ -99,17 +103,20 @@ export function renderScatterChart(canvas, clusterResult) {
           display: true,
           text: 'K-Means Clustering – Word Count vs Character Count',
           font: { size: 14, weight: '600' },
+          color: '#f1f5f9',
           padding: { bottom: 12 },
         },
       },
       scales: {
         x: {
-          title: { display: true, text: 'Word Count', font: { weight: '600' } },
-          grid: { color: 'rgba(0,0,0,0.05)' },
+          title: { display: true, text: 'Word Count', font: { weight: '600' }, color: '#94a3b8' },
+          grid:  { color: 'rgba(255,255,255,0.06)' },
+          ticks: { color: '#94a3b8' },
         },
         y: {
-          title: { display: true, text: 'Character Count', font: { weight: '600' } },
-          grid: { color: 'rgba(0,0,0,0.05)' },
+          title: { display: true, text: 'Character Count', font: { weight: '600' }, color: '#94a3b8' },
+          grid:  { color: 'rgba(255,255,255,0.06)' },
+          ticks: { color: '#94a3b8' },
         },
       },
     },
@@ -151,11 +158,12 @@ export function renderDoughnutChart(canvas, clusterStats) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'right', labels: { usePointStyle: true } },
+        legend: { position: 'right', labels: { usePointStyle: true, color: '#f1f5f9' } },
         title: {
           display: true,
           text: 'Cluster Size Distribution',
           font: { size: 13, weight: '600' },
+          color: '#f1f5f9',
         },
       },
     },
