@@ -39,8 +39,30 @@ export async function getStatistics() {
 
 /* ── Clustering ──────────────────────────────────────────────── */
 
+/** Analyze a specific list of recording objects passed directly. */
+export async function analyzeRecordings(recordings) {
+  return apiFetch('/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ recordings }),
+  });
+}
+
+/** Analyze only the recordings whose IDs are in the provided array. */
+export async function analyzeSelected(ids) {
+  return apiFetch('/analyze-selected', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+/** Analyze all recordings in the database. */
+export async function analyzeAll() {
+  return apiFetch('/analyze-all', { method: 'POST', body: JSON.stringify({}) });
+}
+
+/** Kept for backward compatibility – maps to analyzeAll. */
 export async function analyzeClusters() {
-  return apiFetch('/analyze', { method: 'POST', body: JSON.stringify({}) });
+  return analyzeAll();
 }
 
 export async function getClusters() {
@@ -54,3 +76,9 @@ export async function getClusterStats() {
 export async function getDemoClusters() {
   return apiFetch('/demo-clusters');
 }
+
+/** Get the transcription text for a single recording by ID. */
+export async function getTranscription(recordingId) {
+  return apiFetch(`/recordings/${recordingId}/transcribe`);
+}
+

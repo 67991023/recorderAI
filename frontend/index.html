@@ -17,7 +17,7 @@
        Navigation bar
   ══════════════════════════════════════════ -->
   <nav class="navbar">
-    <span class="navbar-brand">🎙️ RecorderAI</span>
+    <span class="navbar-brand">🎙️ Recorder<span class="brand-dot">AI</span></span>
     <div class="navbar-tabs">
       <button class="nav-tab active" data-page="page-dashboard">📊 Dashboard</button>
       <button class="nav-tab"        data-page="page-clustering">🔬 Clustering</button>
@@ -49,28 +49,70 @@
       </div>
     </div>
 
-    <!-- Add recording form -->
+    <!-- ── Audio recording & STT toolbar ── -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title"><span class="title-icon">🎙️</span> Record &amp; Transcribe</div>
+
+      <!-- Waveform visualizer (shown while recording) -->
+      <div class="waveform-container" id="waveformContainer">
+        <div class="rec-status"><span class="rec-dot"></span> Recording…</div>
+        <canvas id="waveformCanvas"></canvas>
+      </div>
+
+      <div class="recording-toolbar">
+        <span class="toolbar-label">Audio:</span>
+        <button id="btnStartRec"  class="btn btn-danger btn-sm">🔴 Start Recording</button>
+        <button id="btnStopRec"   class="btn btn-outline btn-sm" disabled>⏹ Stop</button>
+        <button id="btnPlayRec"   class="btn btn-outline btn-sm" disabled>▶ Play</button>
+
+        <span class="toolbar-label" style="margin-left:8px">STT:</span>
+        <select id="sttLang" class="lang-select">
+          <option value="th-TH">🇹🇭 Thai</option>
+          <option value="en-US" selected>🇺🇸 English</option>
+          <option value="th-TH+en-US">🌐 Thai + EN</option>
+        </select>
+        <button id="btnStartSTT" class="btn btn-primary btn-sm">🎤 Start Transcribe</button>
+        <button id="btnStopSTT"  class="btn btn-outline btn-sm" disabled>⏹ Stop STT</button>
+      </div>
+
+      <!-- STT live result / confidence -->
+      <div id="sttStatus" style="display:none;font-size:0.82rem;color:var(--text-muted);margin-bottom:8px"></div>
+    </div>
+
+    <!-- Add / edit recording form -->
     <div class="form-section">
-      <div class="section-title">➕ Add New Recording</div>
+      <div class="section-title"><span class="title-icon">➕</span> Add New Recording</div>
       <form id="recordingForm">
         <div class="form-group">
           <label for="textInput">Recording Text</label>
           <textarea id="textInput" required
-            placeholder="Type or paste your recording text here…"></textarea>
+            placeholder="Type, paste, or use 🎤 Transcribe above to fill this field…"></textarea>
         </div>
         <div class="form-group">
-          <label for="wordCount">Word Count <span style="font-weight:400;color:#999">(auto-calculated)</span></label>
+          <label for="wordCount">Word Count <span style="font-weight:400;color:var(--muted)">(auto-calculated)</span></label>
           <input type="number" id="wordCount" required placeholder="0" min="0" />
         </div>
-        <button type="submit" class="btn btn-primary">💾 Save Recording</button>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button type="submit" class="btn btn-primary">💾 Save Recording</button>
+          <button type="button" id="btnClearForm" class="btn btn-outline">✕ Clear</button>
+        </div>
       </form>
     </div>
 
-    <!-- Recordings list -->
+    <!-- Recordings list with checkboxes -->
     <div class="card">
-      <div class="section-title">📋 Recent Recordings</div>
+      <div class="section-title"><span class="title-icon">📋</span> Recordings</div>
+
+      <!-- Selection toolbar -->
+      <div class="selection-toolbar" id="selectionToolbar">
+        <span class="selection-count" id="selectionCount">0 selected</span>
+        <button id="btnSelectAll"   class="btn btn-outline btn-sm">✓ Select All</button>
+        <button id="btnDeselectAll" class="btn btn-outline btn-sm">✕ Deselect All</button>
+        <button id="btnAnalyzeSelected" class="btn btn-primary btn-sm" disabled>🔬 Analyze Selected</button>
+      </div>
+
       <div id="recordingsList">
-        <div style="text-align:center;padding:20px;color:#667eea">Loading recordings…</div>
+        <div style="text-align:center;padding:24px;color:var(--text-muted)">Loading recordings…</div>
       </div>
     </div>
 
@@ -83,22 +125,24 @@
   <div class="page" id="page-clustering">
 
     <div class="card">
-      <div class="section-title">🔬 K-Means Clustering Analysis</div>
-      <p style="color:#555;margin-bottom:16px;font-size:0.92rem">
-        Run K-Means on all recordings in the database, or load instant demo data
-        to explore the visualisation right away.
+      <div class="section-title"><span class="title-icon">🔬</span> K-Means Clustering Analysis</div>
+      <p style="color:var(--text-muted);margin-bottom:16px;font-size:0.9rem">
+        Select recordings on the <strong>Dashboard</strong> tab and click
+        <em>Analyze Selected</em>, or use the options below.
       </p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <button id="btnRunAnalysis"  class="btn btn-success">▶ Run Live Analysis</button>
+        <button id="btnRunAnalysis"  class="btn btn-success">▶ Analyze All</button>
+        <button id="btnRunSelected"  class="btn btn-primary" disabled>🎯 Analyze Selected (<span id="selectedCountBadge">0</span>)</button>
         <button id="btnDemoAnalysis" class="btn btn-demo">🎬 Load Demo Data</button>
       </div>
     </div>
 
     <!-- Results injected here by dashboard.js -->
     <div id="clusterResults">
-      <div style="text-align:center;padding:40px;color:#999;font-size:0.95rem">
-        Click <strong>Run Live Analysis</strong> to cluster your recordings, or
-        <strong>Load Demo Data</strong> to see a pre-computed example.
+      <div style="text-align:center;padding:48px;color:var(--text-muted);font-size:0.95rem">
+        Click <strong>Analyze All</strong> to cluster your recordings, choose
+        specific recordings first for <strong>Analyze Selected</strong>, or
+        <strong>Load Demo Data</strong> to see an instant example.
       </div>
     </div>
 
