@@ -1,26 +1,22 @@
-# Updated Dockerfile to include missing recorder.js and transcriber.js files
+FROM nginx:alpine
 
-# Use an official Node.js runtime as a parent image
-FROM node:14
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Set the working directory
-WORKDIR /usr/src/app
+# Copy all static files (HTML, CSS, JS)
+COPY index.html    /usr/share/nginx/html/
+COPY styles.css    /usr/share/nginx/html/
+COPY api.js        /usr/share/nginx/html/
+COPY charts.js     /usr/share/nginx/html/
+COPY dashboard.js  /usr/share/nginx/html/
+COPY recorder.js   /usr/share/nginx/html/
+COPY transcriber.js /usr/share/nginx/html/
 
-# Copy package.json files
-COPY package*.json ./
+# Expose port
+EXPOSE 80
 
-# Install any dependencies
-RUN npm install
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
 
-# Copy the rest of our application code
-COPY . .
-
-# Add missing JavaScript files
-COPY path/to/recorder.js ./path/to/recorder.js
-COPY path/to/transcriber.js ./path/to/transcriber.js
-
-# Expose port 3000
-EXPOSE 3000
-
-# Define the command to run our app
-CMD [ "node", "dashboard.js" ]
+CMD ["nginx", "-g", "daemon off;"]
