@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Frontend - Nginx serving HTML/JS
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: recorderai-frontend
+    ports: 
+      - "8080:80"
+    networks: 
+      - recorderai-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Backend - Python Flask API
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: recorderai-backend
+    environment:
+      - DB_HOST=db
+      - DB_NAME=recorderai
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres123
+      - FLASK_ENV=production
+    ports:
+      - "5000:5000"
+    networks: 
+      - recorderai-network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:  ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/health')"]
+      interval: 30s
+      timeout:  3s
+      retries:  3
+      start_period:  40s
+
+  # Database - PostgreSQL
+  db:
+    image:  postgres:15-alpine
+    container_name: recorderai-db
+    environment: 
+      - POSTGRES_DB=recorderai
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+    ports:
+      - "5432:5432"
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - recorderai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval:  10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  recorderai-network:
+    driver: bridge
+    name: recorderai-network
+
+volumes:
+  postgres_data: 
+    driver: local
+    name: recorderai-postgres-data

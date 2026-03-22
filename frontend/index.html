@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RecorderAI — Clustering Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Chart.js from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+            integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+            crossorigin="anonymous"></script>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header class="app-header">
+    <div class="header-brand">
+        🎙️ RecorderAI
+        <span style="font-size:0.75rem;font-weight:400;opacity:0.8;margin-left:4px">K-Means Dashboard</span>
+    </div>
+    <div class="header-actions">
+        <button class="dark-toggle" id="darkToggle" title="Toggle dark mode">🌙</button>
+    </div>
+</header>
+
+<!-- ── Tab Navigation ──────────────────────────────────────────────────────── -->
+<nav class="tab-nav">
+    <button class="tab-btn active" data-tab="tab-overview">📊 Overview</button>
+    <button class="tab-btn" data-tab="tab-recordings">📋 Recordings</button>
+    <button class="tab-btn" data-tab="tab-clustering">🤖 Clustering Analysis</button>
+    <button class="tab-btn" data-tab="tab-add">➕ Add Recording</button>
+</nav>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main class="main-content">
+
+    <!-- ══ Overview Tab ══════════════════════════════════════════════════════ -->
+    <section class="tab-panel active" id="tab-overview">
+
+        <!-- Stats cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon purple">🎙️</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statTotal">—</div>
+                    <div class="stat-label">Total Recordings</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green">📝</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statAvg">—</div>
+                    <div class="stat-label">Avg Words</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">⬆️</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statMax">—</div>
+                    <div class="stat-label">Max Words</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange">⬇️</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statMin">—</div>
+                    <div class="stat-label">Min Words</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick info card -->
+        <div class="card">
+            <div class="card-title">🏗️ System Architecture</div>
+            <p style="color:var(--text-secondary);line-height:1.7;font-size:0.92rem">
+                RecorderAI captures Thai voice recordings, converts them to text via STT, then applies
+                <strong>K-Means clustering</strong> on TF-IDF vectors to automatically discover
+                thematic groupings — with no labelled data required.
+                Use the <strong>Clustering Analysis</strong> tab to explore the live results.
+            </p>
+            <div style="margin-top:20px;display:flex;flex-wrap:wrap;gap:10px">
+                <span style="background:rgba(102,126,234,0.12);color:var(--primary);padding:6px 14px;border-radius:999px;font-size:0.82rem;font-weight:600">TF-IDF Vectorisation</span>
+                <span style="background:rgba(17,153,142,0.12);color:var(--secondary);padding:6px 14px;border-radius:999px;font-size:0.82rem;font-weight:600">K-Means Clustering</span>
+                <span style="background:rgba(246,79,89,0.12);color:#f64f59;padding:6px 14px;border-radius:999px;font-size:0.82rem;font-weight:600">PCA 2-D Projection</span>
+                <span style="background:rgba(247,183,49,0.12);color:#b45309;padding:6px 14px;border-radius:999px;font-size:0.82rem;font-weight:600">Silhouette Scoring</span>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ══ Recordings Tab ════════════════════════════════════════════════════ -->
+    <section class="tab-panel" id="tab-recordings">
+        <div class="card">
+            <div class="card-title">📋 All Recordings
+                <button class="btn btn-secondary" style="margin-left:auto;padding:6px 14px;font-size:0.82rem"
+                    onclick="window._reloadRecordings()">↺ Refresh</button>
+            </div>
+            <div class="recordings-list" id="recordingsList">
+                <div class="state-box"><div class="spinner"></div><div class="state-sub">Loading recordings…</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══ Clustering Analysis Tab ═══════════════════════════════════════════ -->
+    <section class="tab-panel" id="tab-clustering">
+
+        <!-- Summary metrics (filled by dashboard.js) -->
+        <div class="card" id="clusterSummary">
+            <div class="state-box">
+                <div class="spinner"></div>
+                <div class="state-sub">Waiting for data…</div>
+            </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="charts-row">
+            <div class="card" style="margin-bottom:0">
+                <div class="card-title">🔵 Cluster Scatter Plot (PCA 2-D)</div>
+                <div class="chart-wrapper">
+                    <canvas id="chartScatter"></canvas>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:0">
+                <div class="card-title">📊 Cluster Distribution</div>
+                <div class="chart-wrapper">
+                    <canvas id="chartDist"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cluster keyword table -->
+        <div class="card" style="margin-top:20px">
+            <div class="card-title">🔑 Cluster Keywords &amp; Statistics</div>
+            <div class="cluster-table-wrapper">
+                <table class="cluster-table">
+                    <thead>
+                        <tr>
+                            <th>Cluster</th>
+                            <th>Recordings</th>
+                            <th>Avg Words</th>
+                            <th>Top Keywords</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clusterTableBody">
+                        <tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:24px">No data yet</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Filtered recordings by cluster -->
+        <div class="card" style="margin-top:20px">
+            <div class="card-title">🔍 Filter Recordings by Cluster</div>
+            <div class="filter-row" id="filterRow">
+                <span class="filter-label" style="color:var(--text-secondary)">Loading…</span>
+            </div>
+            <div class="recordings-list" id="filteredRecordings"></div>
+        </div>
+
+    </section>
+
+    <!-- ══ Add Recording Tab ═════════════════════════════════════════════════ -->
+    <section class="tab-panel" id="tab-add">
+        <div class="card" style="max-width:680px;margin:0 auto">
+            <div class="card-title">➕ Add &amp; Analyze Recording</div>
+            <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px">
+                Enter recording text below. The system will save it and immediately run
+                K-Means clustering on all recordings to update the analysis.
+            </p>
+            <form id="recordingForm" class="form-grid">
+                <div class="form-group">
+                    <label for="recordText">Recording Text</label>
+                    <textarea id="recordText" rows="6"
+                        placeholder="Paste or type your recording transcript here…" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="recordWordCount">Word Count (auto-calculated)</label>
+                    <input type="number" id="recordWordCount" min="0" placeholder="0" />
+                    <span class="word-count-hint" id="wcHint"></span>
+                </div>
+                <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">🚀 Analyze &amp; Save</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('recordingForm').reset();document.getElementById('wcHint').textContent=''">
+                        🗑️ Clear
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+</main>
+
+<!-- ── Toast container ─────────────────────────────────────────────────────── -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ── JS modules ──────────────────────────────────────────────────────────── -->
+<script type="module" src="dashboard.js"></script>
+
+</body>
+</html>
